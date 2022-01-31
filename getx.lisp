@@ -49,10 +49,15 @@ employee in some Acme company whose first name is Frode:
   "Define a GETX special indicator. This consists of two functions:
 The query function %<NAME> that performs the relevant query,
 and the specifier function <NAME> that merely records the indicator
-for perusal by GETX:?
+for perusal by GETX:?.
 
 In SURFACE-LAMBDA, the first argument is the current object X, and the
-remaining arguments relate to the indicator."
+remaining arguments relate to the indicator.
+
+The option QUERY-LAMBDA must be specified if SURFACE-LAMBDA has
+non-required arguments. QUERY-LAMBDA must consist only of required
+arguments, and the first argument must be identical to that of
+SURFACE-LAMBDA."
   (let* ((do-query-name
 	     (intern (format nil "%~A" name)))
 	 (body
@@ -135,7 +140,7 @@ returning the first value for KEY)."
 	  collect (proceed value)))
 
 (define-getx each (list)
-  "Fan out search across each element of LIST."
+  "Fan out query across each element of LIST. Returns a list."
   (mapcar #'proceed list))
 
 (define-getx each-key (x)
@@ -170,5 +175,5 @@ returning the first value for KEY)."
   (proceed (assoc item alist :key key :test test)))
 
 (define-getx filter (list function)
-  "Map FUNCTION over LIST."
+  "Map FUNCTION over LIST. Returns a list."
   (proceed (mapcar function list)))
