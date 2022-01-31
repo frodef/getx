@@ -127,12 +127,16 @@ remaining arguments relate to the indicator."
 	    (proceed (? x indicator)))
 	  indicators))
 
-(define-getx each (plist each-key)
+(define-getx all (plist each-key)
   "Return a list of all values of PLIST for KEY (as opposed to just
 returning the first value for KEY)."
   (loop for (key value) on plist by #'cddr
 	when (eq key each-key)
 	  collect (proceed value)))
+
+(define-getx each (list)
+  "Fan out search across each element of LIST."
+  (mapcar #'proceed list))
 
 (define-getx each-key (x)
   "Return the keys of a plist or hash-table X, discarding the values."
