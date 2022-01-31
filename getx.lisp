@@ -1,42 +1,46 @@
 
-(in-package #:getf)
+(in-package #:getx)
 
-(defvar *special-getf-operators* nil
-  "Records a list of operators defined by DEFINE-GETF.")
+(defparameter *special-getx-operators* nil
+  "Records a list of operators defined by DEFINE-GETX.")
 
-(defun ? (plist &rest indicators)
-  "Query a hierarchy of PLISTs (or list of PLISTs) by recursively
-applying a INDICATORS sequentially. Each INDICATOR is an
-atom (typically a keyword) tested under EQ against PLIST, or a special
-indicator form that can also operate on a list of PLISTs.~@[ See the
-documentation for the individual special indicators: ~{~S~^, ~}.~]
+(defun ? (x &rest indicators)
+  "Query a hierarchical data-structure X by recursively applying
+INDICATORS sequentially.
+
+If INDICATOR is an atom (typically a keyword) it is either looked up
+ in X by CL:GETF or CL:GETHASH, depending on the type of X.
+
+Otherwise, INDICATOR is a special indicator form that can operate on
+any number of data types for X. ~@[ See the documentation for the
+individual special indicators: ~{~S~^, ~}.~]
 
 For example, to find the email address and phone number of every
 employee in some Acme company whose first name is Frode:
-  (getf:? company-plists (getf:seek :name \"Acme\" 'str:contains?) :employees (getf:select :first-name \"Frode\") (getf:multiple :email :phone))"
+  (getx:? company-plists (getx:seek :name \"Acme\" 'str:contains?) :employees (getx:select :first-name \"Frode\") (getx:multiple :email :phone))"
   (cond
     ((null indicators)
-     plist)
+     x)
     ((consp (car indicators))
      (apply (caar indicators)
 	    (cdr indicators)
-	    plist
+	    x
 	    (cdar indicators)))
-    ((hash-table-p plist)
+    ((hash-table-p x)
      (apply #'?
-	    (gethash (car indicators) plist)
+	    (gethash (car indicators) x)
 	    (cdr indicators)))
     (t (apply #'?
-	      (getf plist (car indicators))
+	      (getx x (car indicators))
 	      (cdr indicators)))))
 
 (defmethod documentation ((x (eql '?)) (doc-type (eql 'function)))
-  (format nil (documentation #'? 'function) *special-getf-operators*))
+  (format nil (documentation #'? 'function) *special-getx-operators*))
 
-(defmacro define-getf (name getter-lambda &body body)
+(defmacro define-getx (name getter-lambda &body body)
   (let ((getter-name (intern (format nil "%~A" name))))
     `(progn
-       (pushnew ',name *special-getf-operators*)
+       (pushnew ',name *special-getx-operators*)
        (defun ,getter-name (continuation ,@getter-lambda)
 	 (flet ((proceed (new-plist)
 		  (apply #'? new-plist continuation)))
@@ -48,7 +52,7 @@ employee in some Acme company whose first name is Frode:
 	     (list (concatenate 'string "Special indicator: " (first body))))
 	 (list* ',getter-name args)))))
 
-(define-getf index (plist n)
+(define-getx index (plist n)
   "Take the Nth element of PLIST."
   (proceed
    (etypecase plist
@@ -58,37 +62,37 @@ employee in some Acme company whose first name is Frode:
       (when (<= 0 n (length plist))
 	(aref plist n))))))
 
-(define-getf seek (plist indicator value &optional (test 'equal))
+(define-getx seek (plist indicator value &optional (test 'equal))
   "Find the first element of PLIST where INDICATOR matches VALUE under TEST."
   (dolist (sub-plist plist)
     (when (funcall test value (? sub-plist indicator))
       (return (proceed sub-plist)))))
 
-(define-getf select (plist indicator value &optional (test 'equal))
-  "Select each element of PLIST where INDICATOR matches VALUE under TEST. Returns a list."
-  (mapcan (lambda (sub-plist)
-	    (when (funcall test value (? sub-plist indicator))
-	      (list (proceed sub-plist))))
-	  plist))
+(define-getx select (plists indicator value &optional (test 'equal))
+  "Select each plist in PLISTS where INDICATOR matches VALUE under TEST. Returns a list of plists."
+  (mapcan (lambda (plist)
+	    (when (funcall test value (? plist indicator))
+	      (list (proceed plist))))
+	  plists))
 
-(define-getf prog? (plist &rest indicators)
+(define-getx prog? (plist &rest indicators)
   "Process a sequence of INDICATORS."
   (proceed (apply #'? plist indicators)))
 
-(define-getf multiple (plist &rest indicators)
+(define-getx multiple (plist &rest indicators)
   "Return a list from processing multiple INDICATORS."
   (mapcar (lambda (indicator)
 	    (proceed (? plist indicator)))
 	  indicators))
 
-(define-getf each (plist each-key)
+(define-getx each (plist each-key)
   "Return a list of all values of PLIST for KEY (as opposed to just
 returning the first value for KEY)."
   (loop for (key value) on plist by #'cddr
 	when (eq key each-key)
 	  collect (proceed value)))
 
-(define-getf each-key (plist)
+(define-getx each-key (plist)
   "Return the keys of PLIST, discarding the values."
   (etypecase plist
     (list
@@ -98,12 +102,16 @@ returning the first value for KEY)."
      (loop for key being the hash-keys of plist
 	   collect key))))
 
-(define-getf each-value (plist)
+(define-getx each-value (plist)
   "Return the values of PLIST, discarding the keys."
   (loop for (key value) on plist by #'cddr
 	collect (proceed value)))
 
-(define-getf either (plist &rest indicators)
+(define-getx either (plist &rest indicators)
   "Return the first INDICATOR that returns a non-NIL result."
   (loop for indicator in indicators
 	thereis (proceed (? plist indicator))))
+
+(define-getx slot (object slot-name)
+  "Return the slot of an object."
+  (proceed (slot-value object slot-name)))
