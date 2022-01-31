@@ -4,12 +4,15 @@
    #:common-lisp)
   (:export
    ?
-   index
-   select
-   seek
-   prog?
-   multiple
+   associate
    each
    each-key
    each-value
-   either))
+   either
+   filter
+   index
+   multiple
+   prog?
+   seek
+   select
+   ))
