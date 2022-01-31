@@ -1,5 +1,5 @@
 
-(defpackage #:getf
+(defpackage #:getx
   (:use
    #:common-lisp)
   (:export
