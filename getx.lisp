@@ -43,14 +43,18 @@ employee in some Acme company whose first name is Frode:
   "Inject special indicators into docstring for GETX:?"
   (format nil (documentation #'? 'function) *special-getx-operators*))
 
-(defmacro define-getx (name lambda &body body)
-  "Define a special indicator. This consists of two functions: The
-query function that performs the relevant query, and the specifier
-function that merely records the indicator for perusal by GETX:?"
+(defmacro define-getx (name lambda-list &body body)
+  "Define a GETX special indicator. This consists of two functions:
+The query function DOQUERY-<NAME> that performs the relevant query,
+and the specifier function <NAME> that merely records the indicator
+for perusal by GETX:?
+
+In LAMBDA-LIST, the first argument is the current object X, and the
+remaining arguments relate to the indicator."
   (let ((doquery-name (intern (format nil "%~A" name))))
     `(progn
        (pushnew ',name *special-getx-operators*)
-       (defun ,doquery-name (continuation ,@lambda)
+       (defun ,doquery-name (continuation ,@lambda-list)
 	 (flet ((proceed (new-plist)
 		  (apply #'? new-plist continuation)))
 	   ,@(if (stringp (first body))
@@ -129,3 +133,7 @@ returning the first value for KEY)."
 (define-getx associate (alist item &key (key 'identity) (test 'eq))
   "Look up ITEM in ALIST as by CL:ASSOC."
   (proceed (assoc item alist :key key :test test)))
+
+(define-getx filter (list function)
+  "Map FUNCTION over LIST."
+  (proceed (mapcar function list)))
