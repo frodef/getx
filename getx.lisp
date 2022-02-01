@@ -64,7 +64,14 @@ SURFACE-LAMBDA."
 	   (loop for b = options-body then (cddr b)
 		   thereis (unless (keywordp (first b)) b)))
 	 (options
-	   (ldiff options-body body)))
+	   (ldiff options-body body))
+	 (docstrings
+	   (loop while (and (stringp (car body))
+			    (cdr body))
+		 collect (pop body)))
+	 (declarations
+	   (loop while (typep (car body) '(cons (eql declare)))
+		 collect (pop body))))
     (destructuring-bind (&key (query-lambda surface-lambda))
 	options
       (assert (and (every #'symbolp query-lambda)
@@ -80,14 +87,15 @@ SURFACE-LAMBDA."
 	 (pushnew ',name *special-getx-operators*)
 	 (declaim (inline ,name ,do-query-name))
 	 (defun ,do-query-name (continuation ,@query-lambda)
+	   ,@docstrings
+	   ,@declarations
 	   (flet ((proceed (new-plist)
 		    (apply #'? new-plist continuation)))
-	     ,@(if (stringp (first body))
-		   (cdr body)
-		   body)))
+	     (declare (ignorable (function proceed)))
+	     ,@body))
 	 (defun ,name ,(cdr surface-lambda)
-	   ,@(when (stringp (first body))
-	       (list (concatenate 'string "Special GETX indicator: " (first body))))
+	   ,@(when docstrings
+	       (list (concatenate 'string "Special GETX indicator: " (first docstrings))))
 	   (list ',do-query-name ,@(cdr query-lambda)))
 	 (declaim (notinline ,name ,do-query-name))))))
 
@@ -103,14 +111,20 @@ SURFACE-LAMBDA."
       (return (proceed element)))))
 
 (define-getx index (sequence n)
-  "Take the Nth element of SEQUENCE, or NIL if out of range."
+  "Take the Nth element of SEQUENCE, or NIL if out of range. Negative index counts from the end."
   (proceed
    (etypecase sequence
      (list
-      (nth n sequence))
+      (if (minusp n)
+	  (car (last sequence (- n)))
+	  (nth n sequence)))
      (vector
-      (when (<= 0 n (length sequence))
-	(aref sequence n))))))
+      (let ((length (length sequence)))
+	(cond
+	  ((< -1 n length)
+	   (aref sequence n))
+	  ((< -1 (+ length n) length)
+	   (aref sequence (+ length n)))))))))
 
 (define-getx select (list indicator value &optional (test 'equal))
   :query-lambda (list indicator value test)
@@ -153,12 +167,14 @@ returning the first value for KEY)."
      (loop for key being the hash-keys of x
 	   collect key))))
 
-(define-getx each-value (x)
-  "Return the values of PLIST, discarding the keys."
+(define-getx each-value (x &rest indicators)
+  :query-lambda (x indicators)
+  "Return the values of PLIST for which query INDICATORS is true, discarding the keys."
   (etypecase x
     (list
      (loop for (key value) on x by #'cddr
-	   collect (proceed value)))
+	   when (apply #'? value indicators)
+	     collect (proceed value)))
     (hash-table
      (loop for value being the hash-values of x
 	   collect value))))
@@ -177,3 +193,23 @@ returning the first value for KEY)."
 (define-getx filter (list function)
   "Map FUNCTION over LIST. Returns a list."
   (proceed (mapcar function list)))
+
+(define-getx combine (list function &optional initial-value)
+  :query-lambda (list function initial-value)
+  "Combine (i.e. CL:REDUCE) LIST by FUNCTION."
+  (proceed (reduce function list :initial-value initial-value)))
+
+(define-getx except (x &rest except-keys)
+  :query-lambda (x except-keys)
+  "Remove EXCEPT-KEYS from PLIST."
+  (etypecase x
+    (list
+     (let ((new-plist (copy-list x)))
+       (dolist (except-key except-keys)
+	 (remf new-plist except-key))
+       (proceed new-plist)))))
+
+(define-getx yield (x value)
+  "Always yield VALUE."
+  (declare (ignore x))
+  value)
