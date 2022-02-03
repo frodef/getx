@@ -15,6 +15,7 @@
    filter
    index
    multiple
+   multiple*
    prog?
    seek
    select
