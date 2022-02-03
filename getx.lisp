@@ -37,7 +37,9 @@ employee in some Acme company whose first name is Frode:
 	    (slot-value x (car indicators))
 	    (cdr indicators)))
     (t (apply #'?
-	      (getf x (car indicators))
+	      (loop for y = x then (cddr y)
+		    while y
+		      thereis (when (eq (car y) (car indicators)) (cadr y)))
 	      (cdr indicators)))))
 (declaim (notinline ?))
 
@@ -167,6 +169,13 @@ returning the first value for KEY)."
   "Fan out query across each element of LIST. Returns a list."
   (mapcar #'proceed list))
 
+(define-getx keep (list &optional (key 'identity))
+  :query-lambda (list key)
+  (loop for x in list
+	for v = (proceed x)
+	when (funcall key v)
+	  collect v))
+
 (define-getx each-key (x)
   "Return the keys of a plist or hash-table X, discarding the values."
   (etypecase x
@@ -198,7 +207,7 @@ returning the first value for KEY)."
 (define-getx associate (alist item &key (key 'identity) (test 'eq))
   :query-lambda (alist item key test)
   "Look up ITEM in ALIST as by CL:ASSOC."
-  (proceed (assoc item alist :key key :test test)))
+  (proceed (cdr (assoc item alist :key key :test test))))
 
 (define-getx filter (list function)
   "Map FUNCTION over LIST. Returns a list."
@@ -223,3 +232,14 @@ returning the first value for KEY)."
   "Always yield VALUE."
   (declare (ignore x))
   value)
+
+(define-getx string-modulo (sequence match &key (test 'equal))
+  :query-lambda (sequence match test)
+  "If SEQUENCE begins with MATCH, return the remainder of SEQUENCE."
+  (check-type match sequence)
+  (when (and (typep sequence 'sequence)
+	     (> (length sequence) (length match))
+	     (not (mismatch match sequence
+			    :end2 (length match)
+			    :test test)))
+    (subseq sequence (length match))))
