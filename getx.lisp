@@ -137,7 +137,9 @@ SURFACE-LAMBDA."
 (define-getx prog? (x &rest indicators)
   :query-lambda (x indicators)
   "Process a sequence of INDICATORS."
-  (proceed (apply #'? x indicators)))
+  (if continuation ; PROCEED will discard any multiple-values.
+      (proceed (apply #'? x indicators))
+      (apply #'? x indicators)))
 
 (define-getx multiple (x &rest indicators)
   :query-lambda (x indicators)
@@ -145,6 +147,14 @@ SURFACE-LAMBDA."
   (mapcar (lambda (indicator)
 	    (proceed (? x indicator)))
 	  indicators))
+
+(define-getx multiple* (x &rest indicators)
+  :query-lambda (x indicators)
+  "Return multiple INDICATORS from X, as multiple VALUES."
+  (cond
+    (t (values-list (mapcar (lambda (indicator)
+			      (proceed (? x indicator)))
+			    indicators)))))
 
 (define-getx all (plist each-key)
   "Return a list of all values of PLIST for KEY (as opposed to just
