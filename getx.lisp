@@ -170,6 +170,7 @@ returning the first value for KEY)."
   (mapcar #'proceed list))
 
 (define-getx keep (list &optional (key 'identity))
+  "Fan out query across each non-NIL element of LIST. Returns a list."
   :query-lambda (list key)
   (loop for x in list
 	for v = (proceed x)
