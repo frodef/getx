@@ -6,6 +6,7 @@
    ? ??
    all
    associate
+   call
    combine
    each
    each-key
@@ -14,6 +15,7 @@
    either
    filter
    index
+   keep
    multiple
    multiple*
    prog?
