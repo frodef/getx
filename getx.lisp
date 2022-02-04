@@ -233,13 +233,7 @@ returning the first value for KEY)."
   (declare (ignore x))
   value)
 
-(define-getx string-modulo (sequence match &key (test 'equal))
-  :query-lambda (sequence match test)
-  "If SEQUENCE begins with MATCH, return the remainder of SEQUENCE."
-  (check-type match sequence)
-  (when (and (typep sequence 'sequence)
-	     (> (length sequence) (length match))
-	     (not (mismatch match sequence
-			    :end2 (length match)
-			    :test test)))
-    (subseq sequence (length match))))
+(define-getx call (x f &rest args)
+  :query-lambda (x f args)
+  "Apply F to X."
+  (proceed (apply f x args)))
