@@ -9,9 +9,11 @@
   "Query a hierarchical data-structure X by recursively applying
 INDICATORS sequentially.
 
-If INDICATOR is an atom (typically a symbol) it is either looked up in
-X by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE, depending on the type of
-X.
+If INDICATOR is a function object, that function is applied to X.
+
+If INDICATOR is any other atom (typically a keyword or symbol) it is
+either looked up in X by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE,
+depending on the type of X.
 
 Otherwise, INDICATOR is a special indicator form that can operate on
 any number of data types for X. ~@[ See the documentation for the
@@ -22,8 +24,15 @@ employee in some Acme company whose first name is Frode:
   (getx:? company-plists (getx:seek :name \"Acme\" 'str:contains?) :employees (getx:select :first-name \"Frode\") (getx:multiple :email :phone))"
   (cond
     ((null indicators)
+     ;; Query completed.
      x)
+    ((functionp (car indicators))
+     ;; Function indicator
+     (apply #'?
+	    (funcall (car indicators) x)
+	    (cdr indicators)))
     ((consp (car indicators))
+     ;; A special indicator form
      (apply (caar indicators)
 	    (cdr indicators)
 	    x
@@ -36,11 +45,12 @@ employee in some Acme company whose first name is Frode:
      (apply #'?
 	    (slot-value x (car indicators))
 	    (cdr indicators)))
-    (t (apply #'?
-	      (loop for y = x then (cddr y)
-		    while y
-		      thereis (when (eq (car y) (car indicators)) (cadr y)))
-	      (cdr indicators)))))
+    (t ;; GETF-like query
+     (apply #'?
+	    (loop for y = x then (cddr y)
+		  while y
+		    thereis (when (eq (car y) (car indicators)) (cadr y)))
+	    (cdr indicators)))))
 (declaim (notinline ?))
 
 (defmethod documentation ((x (eql '?)) (doc-type (eql 'function)))
