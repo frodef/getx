@@ -1,15 +1,19 @@
 # getx
 ### _Frode Fjeld <frodevf@gmail.com>_
 
+## Intro
+
 A DWIM-ish mechanism to query hierarchical data structures. Or,
 CL:GETF on steriods!
+
+## Description
 
 The main function is GETX:? which performs a Getx query. The first
 argument is the data-structure to be queried, while the remaining
 arguments, called indicators, specify the query. For example:
 
- > (defparameter *data* '(:foo 1 :bar 2 :zap (:zonk 400 :zupp 500)))
- > (getx:? *data* :zap :zonk) => 400
+    > (defparameter *data* '(:foo 1 :bar 2 :zap (:zonk 400 :zupp 500)))
+    > (getx:? *data* :zap :zonk) => 400
 
 In other words, each indicator/query is executed left to right, each
 where each query is applied to the result from the previous one. The
@@ -38,6 +42,7 @@ under EQ as if by CL:GETF. The full set of query processing rules are:
 Note that GETX:? is a normal function, and so standard CL evaluation
 rules apply to the indicators.
 
+## Special indicators
 
 Special indicators is a more extensible syntax for indicators, and
 allows for more complex queries:
@@ -70,13 +75,16 @@ such record, returning a list of the results. The special indicator
 GETX:EACH explicitly does this same fan-out across a list, without any
 selection.
 
-Note that GETX:SEEK, GETX:SELECT etc. are normal functions, and by CL
-evaluation rules cannot themselves perform the query. Rather, these
-functions return "special forms" (i.e. lists) that are recognized by
-GETX:? to perform the relevant operation. For example:
+### Special indicators and evaluation
 
- > (getx:select :first-name "Frode")
- => (GETX::%SELECT :FIRST-NAME "Frode" EQUAL)
+Note that GETX:SEEK, GETX:SELECT etc. are normal functions, and by CL
+evaluation rules cannot themselves perform the query according to
+GETX:? query processing. Rather, these functions return "special
+forms" (i.e. lists) that are recognized by GETX:? to perform the
+relevant operation. For example:
+
+    > (getx:select :first-name "Frode")
+    => (GETX::%SELECT :FIRST-NAME "Frode" EQUAL)
 
 This list is then processed by rule 3 of the GETX:? query processing
 rules above. Each "special form" is documented by its own
@@ -85,23 +93,27 @@ also adheres to standard evaluation rules, and is reasonably
 efficient. Often, the transformation above can be inlined and
 performed compile-time. See macro GETX::DEFINE-GETX for details.
 
+Non-special indicators are all self-evaluating, and thereby avoid this
+problem.
+
+## Example
 
 Here is a complete, self-contained example form to play with:
 
      > (getx:? '((:name "Froogle, Inc"
                   :address "Earth"
-              :employees ((:first-name "Bob"
-                           :email "bob@bob.com")))
-             (:name "Acme Lispcode"
-              :employees ((:first-name "Frode"
-                           :email "frodevf@gmail.com"
-                           :phone "1234567")
-                          (:first-name "Alice"
-                           :email "alice@acme-lisp.com"))))
+                  :employees ((:first-name "Bob"
+                               :email "bob@bob.com")))
+                 (:name "Acme Lispcode"
+                  :employees ((:first-name "Frode"
+                               :email "frodevf@gmail.com"
+                               :phone "1234567")
+                              (:first-name "Alice"
+                               :email "alice@acme-lisp.com"))))
                (getx:seek :name "Acme" 'str:contains?)
                :employees
-           (getx:select :first-name "Frode")
-           (getx:multiple :email :phone))
+               (getx:select :first-name "Frode")
+               (getx:multiple :email :phone))
 
 
 ## License
