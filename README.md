@@ -4,7 +4,7 @@
 ## Intro
 
 A DWIM-ish mechanism - or query language of sorts - to query
-hierarchical data structures. Or, CL:GETF on steriods!
+hierarchical data structures. Or, CL:GETF on steroids!
 
 ## Syntax
 
@@ -17,7 +17,8 @@ data-structure to be queried, while the remaining arguments, called
 indicators, specify the query. For example:
 
     > (defparameter *data* '(:foo 1 :bar 2 :zap (:zonk 400 :zupp 500)))
-    > (getx:? *data* :zap :zonk) => 400
+    > (getx:? *data* :zap :zonk)
+    => 400
 
 In other words, each indicator is processed left to right, where
 (usually) each sub-query is applied to the result from the previous
@@ -90,7 +91,7 @@ selection.
 
 ### Special indicators and evaluation
 
-This section contains information that can normally be ignored.
+This section contains information that can usually be ignored.
 
 GETX:SEEK, GETX:SELECT etc. are normal functions, and by CL evaluation
 rules cannot themselves perform the query according to the GETX:?
@@ -117,7 +118,7 @@ performs the query processing, while GETX:SELECT is referred to as its
 
 Each "special indicator" is documented by its own docstring, and its
 syntax is given by the surface syntax function's lambda-list. The idea
-is to have resonably intuitive surface syntax that also adheres to
+is to have reasonably intuitive surface syntax that also adheres to
 standard evaluation rules, and is reasonably efficient. Often, the
 transformation above can be inlined and performed compile-time. See
 macro GETX::DEFINE-GETX and GETX:?? for details.
