@@ -6,11 +6,15 @@
 A DWIM-ish mechanism to query hierarchical data structures. Or,
 CL:GETF on steriods!
 
+## Syntax
+
+    (getx:? data &rest indicators)
+
 ## Description
 
-The main function is GETX:? which performs a Getx query. The first
-argument is the data-structure to be queried, while the remaining
-arguments, called indicators, specify the query. For example:
+The main function GETX:? performs a getx query. The first argument is
+the data-structure to be queried, while the remaining arguments,
+called indicators, specify the query. For example:
 
     > (defparameter *data* '(:foo 1 :bar 2 :zap (:zonk 400 :zupp 500)))
     > (getx:? *data* :zap :zonk) => 400
