@@ -205,7 +205,7 @@ non-NIL."
 	when (funcall key v)
 	  collect v))
 
-(define-getx each-key (data)
+(define-getx each-key* (data)
   "Return the keys of a plist or hash-table DATA, discarding the
 values."
   (etypecase data
@@ -214,12 +214,12 @@ values."
 	   collect (proceed key)))
     (hash-table
      (loop for key being the hash-keys of data
-	   collect key))))
+	   collect (proceed key)))))
 
-(define-getx each-value (data &rest indicators)
+(define-getx each-value* (data &rest indicators)
   :query-lambda (data indicators)
-  "Return the values of plist or hash-table DATA for which query
-INDICATORS is true, discarding the keys."
+  "Fan out across the values of plist or hash-table DATA for which
+query INDICATORS is true, discarding the keys."
   (etypecase data
     (list
      (loop for (key value) on data by #'cddr
@@ -227,7 +227,7 @@ INDICATORS is true, discarding the keys."
 	     collect (proceed value)))
     (hash-table
      (loop for value being the hash-values of data
-	   collect value))))
+	   collect (proceed value)))))
 
 (define-getx either (data &rest indicators)
   :query-lambda (data indicators)
@@ -252,18 +252,19 @@ INDICATORS is true, discarding the keys."
 (define-getx except (data &rest except-keys)
   :query-lambda (data except-keys)
   "Remove EXCEPT-KEYS (and their values) from DATA, non-destructively."
-  (etypecase data
-    (list
-     (loop for (k v) on data by #'cddr
-	   unless (member k except-keys)
-	     collect k and collect v))
-    (hash-table
-     (let ((new-table (make-hash-table :test (hash-table-test data))))
-       (maphash (lambda (k v)
-		  (unless (member k except-keys)
-		    (setf (gethash k new-table) v)))
-		data)
-       new-table))))
+  (proceed
+   (etypecase data
+     (list
+      (loop for (k v) on data by #'cddr
+	    unless (member k except-keys)
+	      collect k and collect v))
+     (hash-table
+      (let ((new-table (make-hash-table :test (hash-table-test data))))
+	(maphash (lambda (k v)
+		   (unless (member k except-keys)
+		     (setf (gethash k new-table) v)))
+		 data)
+	new-table)))))
 
 (define-getx yield (data value)
   "Always yield VALUE, regardless of DATA."
