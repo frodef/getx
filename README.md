@@ -42,11 +42,11 @@ rules apply to the indicators.
 Special indicators is a more extensible syntax for indicators, and
 allows for more complex queries:
 
-> (getx:? company-plists
-          (getx:seek :name "Acme" 'str:contains?)
-          :employees
-	  (getx:select :first-name "Frode")
-	  (getx:multiple :email :phone))
+    > (getx:? company-plists
+              (getx:seek :name "Acme" 'str:contains?)
+              :employees
+              (getx:select :first-name "Frode")
+              (getx:multiple :email :phone))
 
 Assuming a list of company records, each represented as a plist, this
 query does the following:
@@ -88,20 +88,20 @@ performed compile-time. See macro GETX::DEFINE-GETX for details.
 
 Here is a complete, self-contained example form to play with:
 
- > (getx:? '((:name "Froogle, Inc"
-              :address "Earth"
-	      :employees ((:first-name "Bob"
-	                   :email "bob@bob.com")))
-	     (:name "Acme Lispcode"
-	      :employees ((:first-name "Frode"
-	                   :email "frodevf@gmail.com"
-			   :phone "1234567")
-	                  (:first-name "Alice"
-			   :email "alice@acme-lisp.com"))))
-           (getx:seek :name "Acme" 'str:contains?)
-           :employees
-	   (getx:select :first-name "Frode")
-	   (getx:multiple :email :phone))
+     > (getx:? '((:name "Froogle, Inc"
+                  :address "Earth"
+              :employees ((:first-name "Bob"
+                           :email "bob@bob.com")))
+             (:name "Acme Lispcode"
+              :employees ((:first-name "Frode"
+                           :email "frodevf@gmail.com"
+                           :phone "1234567")
+                          (:first-name "Alice"
+                           :email "alice@acme-lisp.com"))))
+               (getx:seek :name "Acme" 'str:contains?)
+               :employees
+           (getx:select :first-name "Frode")
+           (getx:multiple :email :phone))
 
 
 ## License
