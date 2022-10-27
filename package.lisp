@@ -9,8 +9,8 @@
    call
    combine
    foreach*
-   each-key
-   each-value
+   each-key*
+   each-value*
    except
    either
    filter
