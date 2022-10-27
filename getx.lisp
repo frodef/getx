@@ -153,22 +153,6 @@ SURFACE-LAMBDA."
     (when (funcall test value (? element indicator))
       (return (proceed element)))))
 
-(define-getx index (sequence n)
-  "Take the Nth element of SEQUENCE, or NIL if out of range. Negative index counts from the end."
-  (proceed
-   (etypecase sequence
-     (list
-      (if (minusp n)
-	  (car (last sequence (- n)))
-	  (nth n sequence)))
-     (vector
-      (let ((length (length sequence)))
-	(cond
-	  ((< -1 n length)
-	   (aref sequence n))
-	  ((< -1 (+ length n) length)
-	   (aref sequence (+ length n)))))))))
-
 (define-getx select (list indicator value &optional (test 'equal))
   :query-lambda (list indicator value test)
   "Select each element of LIST where INDICATOR matches VALUE under TEST."
@@ -212,7 +196,7 @@ returning the first value for KEY)."
 
 (define-getx keep (list &optional (key 'identity))
   :query-lambda (list key)
-  "Fan out query across each non-NIL element of LIST. Returns a list."
+  "Fan out query across LIST, and keep the elements for which KEY is non-NIL."
   (loop for x in list
 	for v = (proceed x)
 	when (funcall key v)
