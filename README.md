@@ -3,8 +3,8 @@
 
 ## Intro
 
-A DWIM-ish mechanism to query hierarchical data structures. Or,
-CL:GETF on steriods!
+A DWIM-ish mechanism - or query language of sorts - to query
+hierarchical data structures. Or, CL:GETF on steriods!
 
 ## Syntax
 
@@ -12,39 +12,44 @@ CL:GETF on steriods!
 
 ## Description
 
-The main function GETX:? performs a getx query. The first argument is
-the data-structure to be queried, while the remaining arguments,
-called indicators, specify the query. For example:
+The function GETX:? performs a getx query. The first argument is the
+data-structure to be queried, while the remaining arguments, called
+indicators, specify the query. For example:
 
     > (defparameter *data* '(:foo 1 :bar 2 :zap (:zonk 400 :zupp 500)))
     > (getx:? *data* :zap :zonk) => 400
 
-In other words, each indicator/query is executed left to right, each
-where each query is applied to the result from the previous one. The
-result of the last query is returned from GETX:?.
+In other words, each indicator is processed left to right, where
+(usually) each sub-query is applied to the result from the previous
+one. The result of the last sub-query is eventually returned from
+GETX:?.
 
 As in the example above, most atom indicators are looked up in a plist
 under EQ as if by CL:GETF. The full set of query processing rules are:
 
-  1. A CL:INTEGER indicator is looked up by index. An out-of-bounds
-     index returns NIL. A negative index is counted from the end. DATA
-     must be either a vector or a proper list. Effort is taken to
-     traverse lists exactly once.
 
-  2. A CL:FUNCTIONP indicator is applied to the DATA.
+0. A CL:NULL indicator is ignored, i.e. the query proceeds with the
+   same DATA.
 
-  3. A CL:CONSP indicator is "special", see below.
+1. A CL:INTEGER indicator is looked up by index. An out-of-bounds
+   index returns NIL. A negative index is counted from the end. DATA
+   must be either a vector or a proper list. Effort is taken to
+   traverse lists exactly once.
 
-  4. A CL:HASH-TABLE-P DATA object is sent to CL:GETHASH using the
-     indicator as key.
+2. A CL:FUNCTIONP indicator is applied to the DATA.
 
-  5. A CL:STANDARD-OBJECT or CL:STRUCTURE-OBJECT is sent to
-     CL:SLOT-VALUE using the indicator as slot-name.
+3. A CL:CONSP indicator is "special", see below.
 
-  6. Look up indicator treating DATA as a plist, as if by CL:GETF.
+4. A CL:HASH-TABLE-P DATA object is sent to CL:GETHASH using the
+   indicator as key.
+
+5. A CL:STANDARD-OBJECT or CL:STRUCTURE-OBJECT is sent to
+   CL:SLOT-VALUE using the indicator as slot-name.
+
+6. Otherwise, look up indicator in DATA as a plist, as if by CL:GETF.
 
 Note that GETX:? is a normal function, and so standard CL evaluation
-rules apply to the indicators.
+rules apply to its arguments.
 
 ## Special indicators
 
@@ -60,17 +65,21 @@ allows for more complex queries:
 Assuming a list of company records, each represented as a plist, this
 query does the following:
 
-  1. Search out the first company whose :NAME property matches "Acme"
-     under STR:CONTAINS?.
+1. Search out the first company whose :NAME property matches "Acme"
+   under STR:CONTAINS?.
 
-  2. For that company record, extract the :EMPLOYEES property.
+2. For that company record, extract the :EMPLOYEES property.
 
-  3. Assuming a list of EMPLOYEE records (represented as plists),
-     choose all records whose :FIRST-NAME property is
-     "Frode". GETX:SELECT implicitly fans out the remaining query for
-     each such record.
+3. Assuming a list of EMPLOYEE records (again represented as plists),
+   choose all records whose :FIRST-NAME property is
+   "Frode". GETX:SELECT implicitly fans out the remaining query for
+   each such record. Fanning out means that the remaining query is
+   processed once for each list element, and the list of results is
+   returned.
 
-  4. Return the :EMAIL and :PHONE properties for the employee record.
+4. Return the :EMAIL and :PHONE properties for the employee
+   record. (Again, this will happen once for each match found by the
+   previous GETX:SELECT indicator.)
 
 Note here that GETX:SEEK finds exactly one element (or NIL) and
 continues the query with that element. In contrast, GETX:SELECT can
@@ -81,24 +90,40 @@ selection.
 
 ### Special indicators and evaluation
 
-Note that GETX:SEEK, GETX:SELECT etc. are normal functions, and by CL
-evaluation rules cannot themselves perform the query according to
-GETX:? query processing. Rather, these functions return "special
-forms" (i.e. lists) that are recognized by GETX:? to perform the
-relevant operation. For example:
+This section contains information that can normally be ignored.
+
+GETX:SEEK, GETX:SELECT etc. are normal functions, and by CL evaluation
+rules cannot themselves perform the query according to GETX:? query
+processing. Rather, these functions return internal "special forms"
+(i.e. lists) that are the indicators recognized by GETX:? to perform
+the relevant operation. For example:
 
     > (getx:select :first-name "Frode")
     => (GETX::%SELECT :FIRST-NAME "Frode" EQUAL)
 
-This list is then processed by rule 3 of the GETX:? query processing
-rules above. Each "special form" is documented by its own
-docstring. The idea is to have resonably intuitive surface syntax that
-also adheres to standard evaluation rules, and is reasonably
-efficient. Often, the transformation above can be inlined and
-performed compile-time. See macro GETX::DEFINE-GETX for details.
+No query processing is performed here, just trivial list manipulation.
+The resulting list (indicator) is processed by rule 3 of the GETX:?
+query processing rules above. In other words, these two forms are
+equivalent:
 
-Non-special indicators are all self-evaluating, and thereby avoid this
-problem.
+    > (getx:? data (getx:select :name "Frode"))
+    > (getx:? data '(getx::%select :name "Frode" equal))
+
+The list whose CAR is GETX::%SELECT is the actual indicator, while the
+function GETX:SELECT is merely a convenient way to create that
+indicator. GETX::%SELECT also names the function that actually
+performs the query processing, while GETX:SELECT is referred to as its
+"surface syntax function".
+
+Each "special indicator" is documented by its own docstring, and its
+syntax is given by the surface syntax function's lambda-list. The idea
+is to have resonably intuitive surface syntax that also adheres to
+standard evaluation rules, and is reasonably efficient. Often, the
+transformation above can be inlined and performed compile-time. See
+macro GETX::DEFINE-GETX and GETX:?? for details.
+
+Non-special indicators, such as integers and keywords, are mostly
+self-evaluating, and thereby avoid this problem.
 
 ## Example
 
