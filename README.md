@@ -70,7 +70,7 @@ query does the following:
 
 2. For that company record, extract the :EMPLOYEES property.
 
-3. Assuming a list of EMPLOYEE records (again represented as plists),
+3. Assuming a list of employee records (again represented as plists),
    choose all records whose :FIRST-NAME property is
    "Frode". GETX:SELECT implicitly fans out the remaining query for
    each such record. Fanning out means that the remaining query is
@@ -93,10 +93,10 @@ selection.
 This section contains information that can normally be ignored.
 
 GETX:SEEK, GETX:SELECT etc. are normal functions, and by CL evaluation
-rules cannot themselves perform the query according to GETX:? query
-processing. Rather, these functions return internal "special forms"
-(i.e. lists) that are the indicators recognized by GETX:? to perform
-the relevant operation. For example:
+rules cannot themselves perform the query according to the GETX:?
+query processing rules. Rather, these functions return internal
+"special indicators" (i.e. lists) that are subsequently recognized by
+GETX:? to perform the relevant operation. To illustrate:
 
     > (getx:select :first-name "Frode")
     => (GETX::%SELECT :FIRST-NAME "Frode" EQUAL)
