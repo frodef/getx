@@ -14,7 +14,6 @@
    except
    either
    filter
-   index
    keep
    multiple
    multiple*
