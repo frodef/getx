@@ -60,7 +60,7 @@ allows for more complex queries:
     > (getx:? company-plists
               (getx:seek :name "Acme" 'str:contains?)
               :employees
-              (getx:select :first-name "Frode")
+              (getx:select* :first-name "Frode")
               (getx:multiple :email :phone))
 
 Assuming a list of company records, each represented as a plist, this
@@ -73,48 +73,50 @@ query does the following:
 
 3. Assuming a list of employee records (again represented as plists),
    choose all records whose :FIRST-NAME property is
-   "Frode". GETX:SELECT implicitly fans out the remaining query for
+   "Frode". GETX:SELECT* implicitly fans out the remaining query for
    each such record. Fanning out means that the remaining query is
    processed once for each list element, and the list of results is
    returned.
 
 4. Return the :EMAIL and :PHONE properties for the employee
    record. (Again, this will happen once for each match found by the
-   previous GETX:SELECT indicator.)
+   previous GETX:SELECT* indicator.)
 
 Note here that GETX:SEEK finds exactly one element (or NIL) and
-continues the query with that element. In contrast, GETX:SELECT can
+continues the query with that element. In contrast, GETX:SELECT* can
 match any number of records, and applies the remaining query to each
 such record, returning a list of the results. The special indicator
-GETX:EACH explicitly does this same fan-out across a list, without any
-selection.
+GETX:FOREACH* explicitly does this same fan-out across a list, without
+any selection.
+
+By convention, all indicators that fan out are suffixed by a star*.
 
 ### Special indicators and evaluation
 
 This section contains information that can usually be ignored.
 
-GETX:SEEK, GETX:SELECT etc. are normal functions, and by CL evaluation
-rules cannot themselves perform the query according to the GETX:?
-query processing rules. Rather, these functions return internal
-"special indicators" (i.e. lists) that are subsequently recognized by
-GETX:? to perform the relevant operation. To illustrate:
+GETX:SEEK, GETX:SELECT* etc. are normal functions, and by CL
+evaluation rules cannot themselves perform the query according to the
+GETX:?  query processing rules. Rather, these functions return
+internal "special indicators" (i.e. lists) that are subsequently
+recognized by GETX:? to perform the relevant operation. To illustrate:
 
-    > (getx:select :first-name "Frode")
-    => (GETX::%SELECT :FIRST-NAME "Frode" EQUAL)
+    > (getx:select* :first-name "Frode")
+    => (GETX::%SELECT* :FIRST-NAME "Frode" EQUAL)
 
 No query processing is performed here, just trivial list manipulation.
 The resulting list (indicator) is processed by rule 3 of the GETX:?
 query processing rules above. In other words, these two forms are
 equivalent:
 
-    > (getx:? data (getx:select :name "Frode"))
-    > (getx:? data '(getx::%select :name "Frode" equal))
+    > (getx:? data (getx:select* :name "Frode"))
+    > (getx:? data '(getx::%select* :name "Frode" equal))
 
 The list whose CAR is GETX::%SELECT is the actual indicator, while the
-function GETX:SELECT is merely a convenient way to create that
-indicator. GETX::%SELECT also names the function that actually
-performs the query processing, while GETX:SELECT is referred to as its
-"surface syntax function".
+function GETX:SELECT* is merely a convenient way to create that
+indicator. GETX::%SELECT* also names the function that actually
+performs the query processing, while GETX:SELECT* is referred to as
+its "surface syntax function".
 
 Each "special indicator" is documented by its own docstring, and its
 syntax is given by the surface syntax function's lambda-list. The idea
@@ -142,7 +144,7 @@ Here is a complete, self-contained example form to play with:
                                :email "alice@acme-lisp.com"))))
                (getx:seek :name "Acme" 'str:contains?)
                :employees
-               (getx:select :first-name "Frode")
+               (getx:select* :first-name "Frode")
                (getx:multiple :email :phone))
 
 
