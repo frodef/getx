@@ -26,6 +26,37 @@ employee in some Acme company whose first name is Frode:
     ((null indicators)
      ;; Query completed.
      x)
+    ((null (car indicators))
+     (apply #'? x (cdr indicators)))
+    ((typep (car indicators) '(integer 0 *))
+     ;; integer index indicator
+     (apply #'?
+	    (etypecase x
+	      (list
+	       (dotimes (i (car indicators) (car x))
+		 (pop x)
+		 (when (atom x)
+		   (error 'type-error :datum x :expected-type 'list))))
+	      (vector
+	       (aref x (car indicators))))
+	    (cdr indicators)))
+    ((typep (car indicators) '(integer * -1))
+     ;; negative integer index indicator, count from end
+     (let ((n (- (car indicators))))
+       (apply #'?
+	      (etypecase x
+		(list
+		 (let ((y x))
+		   (dotimes (i n (loop while y do (pop x) (pop y)
+				       finally (return (car x))))
+		     (unless y (return nil))
+		     (pop y))))
+		(vector
+		 (let ((l (length x)))
+		   (if (<= n l)
+		       (aref x (- l n))
+		       nil))))
+	      (cdr indicators))))
     ((functionp (car indicators))
      ;; Function indicator
      (apply #'?
