@@ -4,21 +4,21 @@
    #:common-lisp)
   (:export
    ? ??
-   all
+   all*
    associate
    call
    combine
-   each
+   foreach*
    each-key
    each-value
    except
    either
    filter
-   keep
+   keep*
    multiple
-   multiple*
-   prog?
+   multiple-values
+   progn?
    seek
-   select
+   select*
    yield
    ))

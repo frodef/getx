@@ -5,18 +5,21 @@
   "Records a list of operators defined by DEFINE-GETX.")
 
 (declaim (inline ?))
-(defun ? (x &rest indicators)
-  "Query a hierarchical data-structure X by recursively applying
+(defun ? (data &rest indicators)
+  "Query a hierarchical data-structure DATA by recursively applying
 INDICATORS sequentially.
 
-If INDICATOR is a function object, that function is applied to X.
+If INDICATOR is an integer, its is used as an index into DATA. A
+negative index counts from the end.
+
+If INDICATOR is a function object, that function is applied to DATA.
 
 If INDICATOR is any other atom (typically a keyword or symbol) it is
-either looked up in X by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE,
-depending on the type of X.
+either looked up in DATA by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE,
+depending on the type of DATA.
 
 Otherwise, INDICATOR is a special indicator form that can operate on
-any number of data types for X. ~@[ See the documentation for the
+any number of data types for DATA. ~@[ See the documentation for the
 individual special indicators: ~{~S~^, ~}.~]
 
 For example, to find the email address and phone number of every
@@ -25,60 +28,60 @@ employee in some Acme company whose first name is Frode:
   (cond
     ((null indicators)
      ;; Query completed.
-     x)
+     data)
     ((null (car indicators))
-     (apply #'? x (cdr indicators)))
+     (apply #'? data (cdr indicators)))
     ((typep (car indicators) '(integer 0 *))
      ;; integer index indicator
      (apply #'?
-	    (etypecase x
+	    (etypecase data
 	      (list
-	       (dotimes (i (car indicators) (car x))
-		 (pop x)
-		 (when (atom x)
-		   (error 'type-error :datum x :expected-type 'list))))
+	       (dotimes (i (car indicators) (car data))
+		 (pop data)
+		 (when (atom data)
+		   (error 'type-error :datum data :expected-type 'list))))
 	      (vector
-	       (aref x (car indicators))))
+	       (aref data (car indicators))))
 	    (cdr indicators)))
     ((typep (car indicators) '(integer * -1))
      ;; negative integer index indicator, count from end
      (let ((n (- (car indicators))))
        (apply #'?
-	      (etypecase x
+	      (etypecase data
 		(list
-		 (let ((y x))
-		   (dotimes (i n (loop while y do (pop x) (pop y)
-				       finally (return (car x))))
+		 (let ((y data))
+		   (dotimes (i n (loop while y do (pop data) (pop y)
+				       finally (return (car data))))
 		     (unless y (return nil))
 		     (pop y))))
 		(vector
-		 (let ((l (length x)))
+		 (let ((l (length data)))
 		   (if (<= n l)
-		       (aref x (- l n))
+		       (aref data (- l n))
 		       nil))))
 	      (cdr indicators))))
     ((functionp (car indicators))
      ;; Function indicator
      (apply #'?
-	    (funcall (car indicators) x)
+	    (funcall (car indicators) data)
 	    (cdr indicators)))
     ((consp (car indicators))
      ;; A special indicator form
      (apply (caar indicators)
 	    (cdr indicators)
-	    x
+	    data
 	    (cdar indicators)))
-    ((hash-table-p x)
+    ((hash-table-p data)
      (apply #'?
-	    (gethash (car indicators) x)
+	    (gethash (car indicators) data)
 	    (cdr indicators)))
-    ((typep x '(or standard-object structure-object))
+    ((typep data '(or standard-object structure-object))
      (apply #'?
-	    (slot-value x (car indicators))
+	    (slot-value data (car indicators))
 	    (cdr indicators)))
     (t ;; GETF-like query
      (apply #'?
-	    (loop for y = x then (cddr y)
+	    (loop for y = data then (cddr y)
 		  while y
 		    thereis (when (eq (car y) (car indicators)) (cadr y)))
 	    (cdr indicators)))))
@@ -90,12 +93,12 @@ employee in some Acme company whose first name is Frode:
 
 (defmacro define-getx (name surface-lambda &body options-body)
   "Define a GETX special indicator. This consists of two functions:
-The query function %<NAME> that performs the relevant query,
-and the specifier function <NAME> that merely records the indicator
-for perusal by GETX:?.
+The query function %<NAME> that performs the relevant query, and the
+surface syntax function <NAME> that merely records the indicator for
+perusal by GETX:?.
 
-In SURFACE-LAMBDA, the first argument is the current object X, and the
-remaining arguments relate to the indicator.
+In SURFACE-LAMBDA, the first argument is the current data object X,
+and the remaining arguments are processed by the query function.
 
 The option QUERY-LAMBDA must be specified if SURFACE-LAMBDA has
 non-required arguments. QUERY-LAMBDA must consist only of required
@@ -142,9 +145,9 @@ SURFACE-LAMBDA."
 	   (list ',do-query-name ,@(cdr query-lambda)))
 	 (declaim (notinline ,name ,do-query-name))))))
 
-(defmacro ?? (x &rest indicators)
+(defmacro ?? (data &rest indicators)
   `(locally (declare (inline ? ,@*special-getx-operators*))
-     (? ,x ,@indicators)))
+     (? ,data ,@indicators)))
 
 (define-getx seek (list indicator value &optional (test 'equal))
   :query-lambda (list indicator value test)
@@ -153,86 +156,88 @@ SURFACE-LAMBDA."
     (when (funcall test value (? element indicator))
       (return (proceed element)))))
 
-(define-getx select (list indicator value &optional (test 'equal))
+(define-getx select* (list indicator value &optional (test 'equal))
   :query-lambda (list indicator value test)
-  "Select each element of LIST where INDICATOR matches VALUE under TEST."
+  "Select each element of LIST where INDICATOR matches VALUE under TEST. Fan out query."
   (mapcan (lambda (element)
 	    (when (funcall test value (? element indicator))
 	      (list (proceed element))))
 	  list))
 
-(define-getx prog? (x &rest indicators)
-  :query-lambda (x indicators)
-  "Process a sequence of INDICATORS."
+(define-getx progn? (data &rest indicators)
+  :query-lambda (data indicators)
+  "Process a sequence of INDICATORS, i.e. recursively call ?."
   (if continuation ; PROCEED will discard any multiple-values.
-      (proceed (apply #'? x indicators))
-      (apply #'? x indicators)))
+      (proceed (apply #'? data indicators))
+      (apply #'? data indicators)))
 
-(define-getx multiple (x &rest indicators)
-  :query-lambda (x indicators)
-  "Return a list, being multiple INDICATORS from X."
+(define-getx multiple (data &rest indicators)
+  :query-lambda (data indicators)
+  "Return a list, being multiple INDICATORS from DATA."
   (mapcar (lambda (indicator)
-	    (proceed (? x indicator)))
+	    (proceed (? data indicator)))
 	  indicators))
 
-(define-getx multiple* (x &rest indicators)
-  :query-lambda (x indicators)
-  "Return multiple INDICATORS from X, as multiple VALUES."
-  (cond
-    (t (values-list (mapcar (lambda (indicator)
-			      (proceed (? x indicator)))
-			    indicators)))))
+(define-getx multiple-values (data &rest indicators)
+  :query-lambda (data indicators)
+  "Return multiple INDICATORS from DATA, as multiple values."
+  (values-list (mapcar (lambda (indicator)
+			 (proceed (? data indicator)))
+		       indicators)))
 
-(define-getx all (plist each-key)
-  "Return a list of all values of PLIST for KEY (as opposed to just
-returning the first value for KEY)."
+(define-getx all* (plist each-key)
+  "Fan out across a list of all values of PLIST for KEY (as opposed to
+just returning the first value for KEY)."
   (loop for (key value) on plist by #'cddr
 	when (eq key each-key)
 	  collect (proceed value)))
 
-(define-getx each (list)
+(define-getx foreach* (list)
   "Fan out query across each element of LIST. Returns a list."
   (mapcar #'proceed list))
 
-(define-getx keep (list &optional (key 'identity))
+(define-getx keep* (list &optional (key 'identity))
   :query-lambda (list key)
-  "Fan out query across LIST, and keep the elements for which KEY is non-NIL."
+  "Fan out query across LIST, and keep the elements for which KEY is
+non-NIL."
   (loop for x in list
 	for v = (proceed x)
 	when (funcall key v)
 	  collect v))
 
-(define-getx each-key (x)
-  "Return the keys of a plist or hash-table X, discarding the values."
-  (etypecase x
+(define-getx each-key (data)
+  "Return the keys of a plist or hash-table DATA, discarding the
+values."
+  (etypecase data
     (list
-     (loop for (key value) on x by #'cddr
+     (loop for (key value) on data by #'cddr
 	   collect (proceed key)))
     (hash-table
-     (loop for key being the hash-keys of x
+     (loop for key being the hash-keys of data
 	   collect key))))
 
-(define-getx each-value (x &rest indicators)
-  :query-lambda (x indicators)
-  "Return the values of PLIST for which query INDICATORS is true, discarding the keys."
-  (etypecase x
+(define-getx each-value (data &rest indicators)
+  :query-lambda (data indicators)
+  "Return the values of plist or hash-table DATA for which query
+INDICATORS is true, discarding the keys."
+  (etypecase data
     (list
-     (loop for (key value) on x by #'cddr
+     (loop for (key value) on data by #'cddr
 	   when (apply #'? value indicators)
 	     collect (proceed value)))
     (hash-table
-     (loop for value being the hash-values of x
+     (loop for value being the hash-values of data
 	   collect value))))
 
-(define-getx either (x &rest indicators)
-  :query-lambda (x indicators)
-  "Return the first INDICATOR that returns a non-NIL result."
+(define-getx either (data &rest indicators)
+  :query-lambda (data indicators)
+  "Return the first INDICATOR sub-query that returns a non-NIL result."
   (loop for indicator in indicators
-	thereis (proceed (? x indicator))))
+	  thereis (proceed (? data indicator))))
 
 (define-getx associate (alist item &key (key 'identity) (test 'eq))
   :query-lambda (alist item key test)
-  "Look up ITEM in ALIST as by CL:ASSOC."
+  "Look up ITEM in ALIST as if by CL:ASSOC."
   (proceed (cdr (assoc item alist :key key :test test))))
 
 (define-getx filter (list function)
@@ -244,22 +249,28 @@ returning the first value for KEY)."
   "Combine (i.e. CL:REDUCE) LIST by FUNCTION."
   (proceed (reduce function list :initial-value initial-value)))
 
-(define-getx except (x &rest except-keys)
-  :query-lambda (x except-keys)
-  "Remove EXCEPT-KEYS from PLIST."
-  (etypecase x
+(define-getx except (data &rest except-keys)
+  :query-lambda (data except-keys)
+  "Remove EXCEPT-KEYS (and their values) from DATA, non-destructively."
+  (etypecase data
     (list
-     (let ((new-plist (copy-list x)))
-       (dolist (except-key except-keys)
-	 (remf new-plist except-key))
-       (proceed new-plist)))))
+     (loop for (k v) on data by #'cddr
+	   unless (member k except-keys)
+	     collect k and collect v))
+    (hash-table
+     (let ((new-table (make-hash-table :test (hash-table-test data))))
+       (maphash (lambda (k v)
+		  (unless (member k except-keys)
+		    (setf (gethash k new-table) v)))
+		data)
+       new-table))))
 
-(define-getx yield (x value)
-  "Always yield VALUE."
-  (declare (ignore x))
+(define-getx yield (data value)
+  "Always yield VALUE, regardless of DATA."
+  (declare (ignore data))
   value)
 
-(define-getx call (x f &rest args)
-  :query-lambda (x f args)
-  "Apply F to X."
-  (proceed (apply f x args)))
+(define-getx call (list f &rest args)
+  :query-lambda (list f args)
+  "Apply F to LIST."
+  (proceed (apply f list args)))
