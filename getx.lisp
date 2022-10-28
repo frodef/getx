@@ -25,66 +25,68 @@ individual special indicators: ~{~S~^, ~}.~]
 For example, to find the email address and phone number of every
 employee in some Acme company whose first name is Frode:
   (getx:? company-plists (getx:seek :name \"Acme\" 'str:contains?) :employees (getx:select :first-name \"Frode\") (getx:multiple :email :phone))"
-  (cond
-    ((null indicators)
-     ;; Query completed.
-     data)
-    ((null (car indicators))
-     (apply #'? data (cdr indicators)))
-    ((typep (car indicators) '(integer 0 *))
-     ;; integer index indicator
-     (apply #'?
-	    (etypecase data
-	      (list
-	       (dotimes (i (car indicators) (car data))
-		 (pop data)
-		 (when (atom data)
-		   (error 'type-error :datum data :expected-type 'list))))
-	      (vector
-	       (aref data (car indicators))))
-	    (cdr indicators)))
-    ((typep (car indicators) '(integer * -1))
-     ;; negative integer index indicator, count from end
-     (let ((n (- (car indicators))))
-       (apply #'?
-	      (etypecase data
-		(list
-		 (let ((y data))
-		   (dotimes (i n (loop while y do (pop data) (pop y)
-				       finally (return (car data))))
-		     (unless y (return nil))
-		     (pop y))))
-		(vector
-		 (let ((l (length data)))
-		   (if (<= n l)
-		       (aref data (- l n))
-		       nil))))
-	      (cdr indicators))))
-    ((functionp (car indicators))
-     ;; Function indicator
-     (apply #'?
-	    (funcall (car indicators) data)
-	    (cdr indicators)))
-    ((consp (car indicators))
-     ;; A special indicator form
-     (apply (caar indicators)
-	    (cdr indicators)
-	    data
-	    (cdar indicators)))
-    ((hash-table-p data)
-     (apply #'?
-	    (gethash (car indicators) data)
-	    (cdr indicators)))
-    ((typep data '(or standard-object structure-object))
-     (apply #'?
-	    (slot-value data (car indicators))
-	    (cdr indicators)))
-    (t ;; GETF-like query
-     (apply #'?
-	    (loop for y = data then (cddr y)
-		  while y
-		    thereis (when (eq (car y) (car indicators)) (cadr y)))
-	    (cdr indicators)))))
+  (if (null indicators)
+      data ; Query completed.
+      (let ((indicator (car indicators)))
+	(typecase indicator
+	  (null
+	   (apply #'? data (cdr indicators)))
+	  ((integer 0 *)
+	   ;; integer index indicator
+	   (apply #'?
+		  (etypecase data
+		    (list
+		     (dotimes (i indicator (car data))
+		       (pop data)
+		       (when (atom data)
+			 (error 'type-error :datum data :expected-type 'list))))
+		    (vector
+		     (aref data indicator)))
+		  (cdr indicators)))
+	  ((integer * -1)
+	   ;; negative integer index indicator, count from end
+	   (let ((n (- indicator)))
+	     (apply #'?
+		    (etypecase data
+		      (list
+		       (let ((y data))
+			 (dotimes (i n (loop while y do (pop data) (pop y)
+					     finally (return (car data))))
+			   (unless y (return nil))
+			   (pop y))))
+		      (vector
+		       (let ((l (length data)))
+			 (if (<= n l)
+			     (aref data (- l n))
+			     nil))))
+		    (cdr indicators))))
+	  (function
+	   ;; Function indicator
+	   (apply #'?
+		  (funcall indicator data)
+		  (cdr indicators)))
+	  (cons
+	   ;; A special indicator form
+	   (apply (caar indicators)
+		  (cdr indicators)
+		  data
+		  (cdar indicators)))
+	  (t (etypecase data
+	       (hash-table
+		(apply #'?
+		       (gethash indicator data)
+		       (cdr indicators)))
+	       ((or standard-object structure-object)
+		(apply #'?
+		       (slot-value data indicator)
+		       (cdr indicators)))
+	       (list
+		;; GETF-like query
+		(apply #'?
+		       (loop for y = data then (cddr y)
+			     while y
+			       thereis (when (eq (car y) indicator) (cadr y)))
+		       (cdr indicators)))))))))
 (declaim (notinline ?))
 
 (defmethod documentation ((x (eql '?)) (doc-type (eql 'function)))
