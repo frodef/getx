@@ -4,7 +4,7 @@
 ## Intro
 
 A DWIM-ish mechanism - or query language of sorts - to query
-hierarchical data structures. Or, CL:GETF on steroids!
+hierarchical data structures in Common Lisp. Or, CL:GETF on steroids!
 
 ## Syntax
 
