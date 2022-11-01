@@ -7,7 +7,6 @@
    all*
    associate
    call
-   combine
    foreach*
    each-key*
    each-value*
@@ -15,6 +14,7 @@
    either
    filter
    keep*
+   keep-type*
    multiple
    multiple-values
    progn?

@@ -200,12 +200,18 @@ just returning the first value for KEY)."
 
 (define-getx keep* (list &optional (key 'identity))
   :query-lambda (list key)
-  "Fan out query across LIST, and keep the elements for which KEY is
+  "Fan out query across each element of LIST for which KEY is
 non-NIL."
   (loop for x in list
-	for v = (proceed x)
-	when (funcall key v)
-	  collect v))
+	when (funcall key x)
+	  collect (proceed x)))
+
+(define-getx keep-type* (list type)
+  :query-lambda (list type)
+  "Fan out query across each element of LIST which matches TYPE."
+  (loop for x in list
+	when (typep x type)
+	  collect (proceed x)))
 
 (define-getx each-key* (data)
   "Return the keys of a plist or hash-table DATA, discarding the
@@ -245,11 +251,6 @@ query INDICATORS is true, discarding the keys."
 (define-getx filter (list function)
   "Map FUNCTION over LIST. Returns a list."
   (proceed (mapcar function list)))
-
-(define-getx combine (list function &optional initial-value)
-  :query-lambda (list function initial-value)
-  "Combine (i.e. CL:REDUCE) LIST by FUNCTION."
-  (proceed (reduce function list :initial-value initial-value)))
 
 (define-getx except (data &rest except-keys)
   :query-lambda (data except-keys)
