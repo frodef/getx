@@ -246,7 +246,7 @@ query INDICATORS is true, discarding the keys."
 (define-getx associate (alist item &key (key 'identity) (test 'eq))
   :query-lambda (alist item key test)
   "Look up ITEM in ALIST as if by CL:ASSOC."
-  (proceed (cdr (assoc item alist :key key :test test))))
+  (proceed (assoc item alist :key key :test test)))
 
 (define-getx filter (list function)
   "Map FUNCTION over LIST. Returns a list."
