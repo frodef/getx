@@ -71,6 +71,9 @@ employee in some Acme company whose first name is Frode:
 		  (cdr indicators)
 		  data
 		  (cdar indicators)))
+	  (stream
+	   ;; PRINC data to stream
+	   (princ data indicator))
 	  (t (etypecase data
 	       (hash-table
 		(apply #'?

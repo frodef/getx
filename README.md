@@ -37,17 +37,19 @@ under EQ as if by CL:GETF. The full set of query processing rules are:
    must be either a vector or a proper list. Effort is taken to
    traverse lists exactly once.
 
-2. A CL:FUNCTIONP indicator is applied to the DATA.
+2. A CL:FUNCTION indicator is applied to the DATA.
 
-3. A CL:CONSP indicator is "special", see below.
+3. A CL:CONS indicator is "special", see below.
 
-4. A CL:HASH-TABLE-P DATA object is sent to CL:GETHASH using the
+4. A CL:STREAM indicator is handled by doing (PRINC <data> <indicator>).
+
+5. A CL:HASH-TABLE-P DATA object is sent to CL:GETHASH using the
    indicator as key.
 
-5. A CL:STANDARD-OBJECT or CL:STRUCTURE-OBJECT is sent to
+6. A CL:STANDARD-OBJECT or CL:STRUCTURE-OBJECT is sent to
    CL:SLOT-VALUE using the indicator as slot-name.
 
-6. Otherwise, look up indicator in DATA as a plist, as if by CL:GETF.
+7. Otherwise, look up indicator in DATA as a plist, as if by CL:GETF.
 
 Note that GETX:? is a normal function, and so standard CL evaluation
 rules apply to its arguments.
@@ -57,7 +59,7 @@ rules apply to its arguments.
 Special indicators is a more extensible syntax for indicators, and
 allows for more complex queries:
 
-    > (getx:? company-plists
+    > (getx:? companies
               (getx:seek :name "Acme" 'str:contains?)
               :employees
               (getx:select* :first-name "Frode")
