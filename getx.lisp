@@ -278,3 +278,7 @@ query INDICATORS is true, discarding the keys."
   :query-lambda (list f args)
   "Apply F to LIST."
   (proceed (apply f list args)))
+
+(define-getx fmt (data format)
+  (proceed (funcall #'format nil format data)))
+
