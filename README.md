@@ -41,7 +41,7 @@ under EQ as if by CL:GETF. The full set of query processing rules are:
 
 3. A CL:CONS indicator is "special", see below.
 
-4. A CL:STREAM indicator is handled by doing (PRINC <data> <indicator>).
+4. A CL:STREAM indicator is handled by doing (PRINC \<data\> \<indicator\>).
 
 5. A CL:HASH-TABLE-P DATA object is sent to CL:GETHASH using the
    indicator as key.
