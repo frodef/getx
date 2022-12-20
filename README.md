@@ -93,6 +93,17 @@ any selection.
 
 By convention, all indicators that fan out are suffixed by a star*.
 
+### Text formatting
+
+The preceding example query could be conveniently formatted into a
+string rather than returned as values:
+
+    > (getx:? companies
+              (getx:seek :name "Acme" 'str:contains?)
+              :employees
+              (getx:select* :first-name "Frode")
+	      (getx:fmt "Frode's email: ~A, phone: ~A" :email :phone))
+
 ### Special indicators and evaluation
 
 This section contains information that can usually be ignored.
