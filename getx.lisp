@@ -282,6 +282,16 @@ query INDICATORS is true, discarding the keys."
   "Apply F to LIST."
   (proceed (apply f list args)))
 
-(define-getx fmt (data format)
-  (proceed (funcall #'format nil format data)))
+(define-getx fmt (data &rest formatters)
+  :query-lambda (data formatters)
+  "Format DATA into a string. Each string FORMATTER is passed to
+CL:FORMAT with any succeeding non-string indicators as arguments,
+until there are no more FORMATTERS."
+  (proceed
+   (with-output-to-string (out)
+     (loop while formatters
+	   do (apply #'format out (pop formatters)
+		     (loop while (and formatters (not (stringp (car formatters))))
+			   collect (getx:? data (pop formatters))))))))
+
 
