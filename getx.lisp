@@ -26,7 +26,7 @@ For example, to find the email address and phone number of every
 employee in some Acme company whose first name is Frode:
   (getx:? company-plists (getx:seek :name \"Acme\" 'str:contains?) :employees (getx:select :first-name \"Frode\") (getx:multiple :email :phone))"
   (if (null indicators)
-      data ; Query completed.
+      data				; Query completed.
       (let ((indicator (car indicators)))
 	(typecase indicator
 	  (null
@@ -35,7 +35,7 @@ employee in some Acme company whose first name is Frode:
 	   ;; integer index indicator
 	   (apply #'?
 		  (etypecase data
-		    (list
+		    (cons
 		     (dotimes (i indicator (car data))
 		       (pop data)
 		       (when (atom data)
@@ -48,7 +48,7 @@ employee in some Acme company whose first name is Frode:
 	   (let ((n (- indicator)))
 	     (apply #'?
 		    (etypecase data
-		      (list
+		      (cons
 		       (let ((y data))
 			 (dotimes (i n (loop while y do (pop data) (pop y)
 					     finally (return (car data))))
@@ -140,8 +140,10 @@ SURFACE-LAMBDA."
 	 (defun ,do-query-name (continuation ,@query-lambda)
 	   ,@docstrings
 	   ,@declarations
-	   (flet ((proceed (new-plist)
-		    (apply #'? new-plist continuation)))
+	   (macrolet ((proceed (new-plist)
+			`(if continuation
+			     (apply #'? ,new-plist continuation)
+			     ,new-plist)))
 	     (declare (ignorable (function proceed)))
 	     ,@body))
 	 (defun ,name ,(cdr surface-lambda)
@@ -172,9 +174,15 @@ SURFACE-LAMBDA."
 (define-getx progn? (data &rest indicators)
   :query-lambda (data indicators)
   "Process a sequence of INDICATORS, i.e. recursively call ?."
-  (if continuation ; PROCEED will discard any multiple-values.
-      (proceed (apply #'? data indicators))
-      (apply #'? data indicators)))
+  (proceed (apply #'? data indicators)))
+
+(define-getx either (data &rest indicators)
+  :query-lambda (data indicators)
+  "Proceed with first INDICATOR that is non-nil."
+  (loop for indicator in indicators
+	for sub-data = (? data indicator)
+	when sub-data
+	  do (return (proceed sub-data))))
 
 (define-getx multiple (data &rest indicators)
   :query-lambda (data indicators)
@@ -199,7 +207,8 @@ just returning the first value for KEY)."
 
 (define-getx foreach* (list)
   "Fan out query across each element of LIST. Returns a list."
-  (mapcar #'proceed list))
+  (loop for element in list
+	collect (proceed element)))
 
 (define-getx keep* (list &optional (key 'identity))
   :query-lambda (list key)
@@ -240,11 +249,11 @@ query INDICATORS is true, discarding the keys."
      (loop for value being the hash-values of data
 	   collect (proceed value)))))
 
-(define-getx either (data &rest indicators)
-  :query-lambda (data indicators)
-  "Return the first INDICATOR sub-query that returns a non-NIL result."
-  (loop for indicator in indicators
-	  thereis (proceed (? data indicator))))
+#+ignore (define-getx either (data &rest indicators)
+	   :query-lambda (data indicators)
+	   "Return the first INDICATOR sub-query that returns a non-NIL result."
+	   (loop for indicator in indicators
+		   thereis (proceed (? data indicator))))
 
 (define-getx associate (alist item &key (key 'identity) (test 'eq))
   :query-lambda (alist item key test)
@@ -275,7 +284,7 @@ query INDICATORS is true, discarding the keys."
 (define-getx yield (data value)
   "Always yield VALUE, regardless of DATA."
   (declare (ignore data))
-  value)
+  (proceed value))
 
 (define-getx call (list f &rest args)
   :query-lambda (list f args)
@@ -293,5 +302,11 @@ until there are no more FORMATTERS."
 	   do (apply #'format out (pop formatters)
 		     (loop while (and formatters (not (stringp (car formatters))))
 			   collect (getx:? data (pop formatters))))))))
+
+(define-getx suppose (data &optional (key 'identity))
+  :query-lambda (data key)
+  "Only proceed query if DATA is true under KEY, otherwise return NIL."
+  (when (funcall key data)
+    (proceed data)))
 
 
