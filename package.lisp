@@ -19,6 +19,7 @@
    multiple-values
    progn?
    seek
+   select
    select*
    yield
    fmt

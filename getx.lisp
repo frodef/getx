@@ -171,6 +171,12 @@ SURFACE-LAMBDA."
 	      (list (proceed element))))
 	  list))
 
+(define-getx select (list indicator value &optional (test 'equal))
+  :query-lambda (list indicator value test)
+  (proceed (loop for element in list
+		 when (funcall test value (? element indicator))
+		   collect element)))
+
 (define-getx progn? (data &rest indicators)
   :query-lambda (data indicators)
   "Process a sequence of INDICATORS, i.e. recursively call ?."
