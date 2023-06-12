@@ -96,6 +96,10 @@ employee in some Acme company whose first name is Frode:
   "Inject special indicators into docstring for GETX:?"
   (format nil (documentation #'? 'function) *special-getx-operators*))
 
+(defun p? (&rest indicators)
+  (lambda (data)
+    (apply #'? data indicators)))
+
 (defmacro define-getx (name surface-lambda &body options-body)
   "Define a GETX special indicator. This consists of two functions:
 The query function %<NAME> that performs the relevant query, and the
