@@ -97,6 +97,8 @@ employee in some Acme company whose first name is Frode:
   (format nil (documentation #'? 'function) *special-getx-operators*))
 
 (defun p? (&rest indicators)
+  "A predicate variant of ?, returns a function that applies INDICATORS
+to its argument."
   (lambda (data)
     (apply #'? data indicators)))
 
