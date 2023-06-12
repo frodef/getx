@@ -3,7 +3,7 @@
   (:use
    #:common-lisp)
   (:export
-   ? ??
+   ? ?? p?
    all*
    associate
    call
