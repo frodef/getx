@@ -1,4 +1,3 @@
-
 (in-package #:getx)
 
 (defparameter *special-getx-operators* nil
@@ -30,7 +29,8 @@ employee in some Acme company whose first name is Frode:
       (let ((indicator (car indicators)))
 	(typecase indicator
 	  (null
-	   (apply #'? data (cdr indicators)))
+	   (when (cdr indicators)
+	     (apply #'? data (cdr indicators))))
 	  ((integer 0 *)
 	   ;; integer index indicator
 	   (apply #'?

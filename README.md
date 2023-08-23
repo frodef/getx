@@ -30,7 +30,7 @@ under EQ as if by CL:GETF. The full set of query processing rules are:
 
 
 0. A CL:NULL indicator is ignored, i.e. the query proceeds with the
-   same DATA.
+   same DATA. Returns NIL.
 
 1. A CL:INTEGER indicator is looked up by index. An out-of-bounds
    index returns NIL. A negative index is counted from the end. DATA
