@@ -3,6 +3,10 @@
 (defparameter *special-getx-operators* nil
   "Records a list of operators defined by DEFINE-GETX.")
 
+(defvar *standard-object-plist* 'identity
+  "Function to map STANDARD-OBJECT data to plist. Function can decline
+by returning the same object.")
+
 (declaim (inline ?))
 (defun ? (data &rest indicators)
   "Query a hierarchical data-structure DATA by recursively applying
@@ -80,9 +84,14 @@ employee in some Acme company whose first name is Frode:
 		       (gethash indicator data)
 		       (cdr indicators)))
 	       ((or standard-object structure-object)
-		(apply #'?
-		       (slot-value data indicator)
-		       (cdr indicators)))
+		(let ((data2 (funcall *standard-object-plist* data)))
+		  (if (eq data data2)
+		      (apply #'?
+			     (slot-value data indicator)
+			     (cdr indicators))
+		      (apply #'?
+			     data2
+			     indicators))))
 	       (list
 		;; GETF-like query
 		(apply #'?
@@ -99,8 +108,10 @@ employee in some Acme company whose first name is Frode:
 (defun p? (&rest indicators)
   "A predicate variant of ?, returns a function that applies INDICATORS
 to its argument."
-  (lambda (data)
-    (apply #'? data indicators)))
+  (let ((sop *standard-object-plist*))
+    (lambda (data)
+      (let ((*standard-object-plist* sop))
+	(apply #'? data indicators)))))
 
 (defmacro define-getx (name surface-lambda &body options-body)
   "Define a GETX special indicator. This consists of two functions:
