@@ -4,6 +4,7 @@
    #:common-lisp)
   (:export
    ? ?? p?
+   *standard-object-plist*
    all*
    associate
    call
