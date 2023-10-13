@@ -3,9 +3,10 @@
 (defparameter *special-getx-operators* nil
   "Records a list of operators defined by DEFINE-GETX.")
 
-(defvar *standard-object-plist* 'identity
-  "Function to map STANDARD-OBJECT data to plist. Function can decline
-by returning the same object.")
+(defvar *standard-object-plist* nil
+  "Function to optionally map STANDARD-OBJECT data to plist. Function is
+applied to DATA and first INDICATOR, and can decline by returning the
+same object.")
 
 (declaim (inline ?))
 (defun ? (data &rest indicators)
@@ -84,7 +85,9 @@ employee in some Acme company whose first name is Frode:
 		       (gethash indicator data)
 		       (cdr indicators)))
 	       ((or standard-object structure-object)
-		(let ((data2 (funcall *standard-object-plist* data)))
+		(let ((data2 (if (not *standard-object-plist*)
+				 data
+				 (funcall *standard-object-plist* data (car indicators)))))
 		  (if (eq data data2)
 		      (apply #'?
 			     (slot-value data indicator)
