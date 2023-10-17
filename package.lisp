@@ -22,6 +22,9 @@
    seek
    select
    select*
+   unselect*
    yield
    fmt
-   suppose))
+   suppose
+   join
+   join*))

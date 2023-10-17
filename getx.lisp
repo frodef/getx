@@ -191,6 +191,14 @@ SURFACE-LAMBDA."
 	      (list (proceed element))))
 	  list))
 
+(define-getx unselect* (list indicator value &optional (test 'equal))
+  :query-lambda (list indicator value test)
+  "Select each element of LIST where INDICATOR doesn't match VALUE under TEST. Fan out query."
+  (mapcan (lambda (element)
+	    (unless (funcall test value (? element indicator))
+	      (list (proceed element))))
+	  list))
+
 (define-getx select (list indicator value &optional (test 'equal))
   :query-lambda (list indicator value test)
   (proceed (loop for element in list
@@ -335,4 +343,22 @@ until there are no more FORMATTERS."
   (when (funcall key data)
     (proceed data)))
 
+(define-getx join* (data indicator other-data-list other-indicator &optional (test 'equal))
+  :query-lambda (data indicator other-data-list other-indicator test)
+  "Find each element of OTHER-DATA-LIST where the value of
+  OTHER-INDICATOR matches DATA:INDICATOR, and fan out query across
+  each such OTHER-DATA."
+  (let ((this-value (? data indicator)))
+    (loop for other-data in other-data-list
+	  when (funcall test this-value (? other-data other-indicator))
+	    collect (proceed other-data))))
 
+(define-getx join (data indicator other-data-list other-indicator &optional (test 'equal))
+  :query-lambda (data indicator other-data-list other-indicator test)
+  "Find the first element of OTHER-DATA-LIST where the value of
+  OTHER-INDICATOR matches DATA:INDICATOR, and proceed query with that
+  OTHER-DATA."
+  (let ((this-value (? data indicator)))
+    (loop for other-data in other-data-list
+	  when (funcall test this-value (? other-data other-indicator))
+	    return (proceed other-data))))
