@@ -343,7 +343,7 @@ until there are no more FORMATTERS."
   (when (funcall key data)
     (proceed data)))
 
-(define-getx join* (data indicator other-data-list other-indicator &optional (test 'equal))
+(define-getx join* (data indicator other-data-list &optional (other-indicator indicator) (test 'equal))
   :query-lambda (data indicator other-data-list other-indicator test)
   "Find each element of OTHER-DATA-LIST where the value of
   OTHER-INDICATOR matches DATA:INDICATOR, and fan out query across
@@ -353,7 +353,7 @@ until there are no more FORMATTERS."
 	  when (funcall test this-value (? other-data other-indicator))
 	    collect (proceed other-data))))
 
-(define-getx join (data indicator other-data-list other-indicator &optional (test 'equal))
+(define-getx join (data indicator other-data-list &optional (other-indicator indicator) (test 'equal))
   :query-lambda (data indicator other-data-list other-indicator test)
   "Find the first element of OTHER-DATA-LIST where the value of
   OTHER-INDICATOR matches DATA:INDICATOR, and proceed query with that
