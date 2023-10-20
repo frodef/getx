@@ -27,4 +27,4 @@
    fmt
    suppose
    join
-   join*))
+   pick))
