@@ -343,6 +343,7 @@ until there are no more FORMATTERS."
   (when (funcall key data)
     (proceed data)))
 
+#+ignore
 (define-getx join* (data indicator other-data-list &optional (other-indicator indicator) (test 'equal))
   :query-lambda (data indicator other-data-list other-indicator test)
   "Find each element of OTHER-DATA-LIST where the value of
@@ -353,6 +354,7 @@ until there are no more FORMATTERS."
 	  when (funcall test this-value (? other-data other-indicator))
 	    collect (proceed other-data))))
 
+#+ignore
 (define-getx join (data indicator other-data-list &optional (other-indicator indicator) (test 'equal))
   :query-lambda (data indicator other-data-list other-indicator test)
   "Find the first element of OTHER-DATA-LIST where the value of
@@ -362,3 +364,20 @@ until there are no more FORMATTERS."
     (loop for other-data in other-data-list
 	  when (funcall test this-value (? other-data other-indicator))
 	    return (proceed other-data))))
+
+(define-getx pick (data other-data-list other-indicator &optional (test 'equal))
+  :query-lambda (data other-data-list other-indicator test)
+  "Pick out first element of OTHER-DATA-LIST whose OTHER-INDICATOR
+matches DATA under TEST. Proceed query with that (other) element."
+  (loop for other-data in other-data-list
+	when (funcall test data (? other-data other-indicator))
+	  return (proceed other-data)))
+
+(define-getx join (data other-data-list other-indicator &optional (test 'equal))
+  :query-lambda (data other-data-list other-indicator test)
+  "Find all elements of OTHER-DATA-LIST whose OTHER-INDICATOR
+matches DATA under TEST. Proceed query with those elements from OTHER-DATA-LIST."
+  (proceed
+   (loop for other-data in other-data-list
+	 when (funcall test data (? other-data other-indicator))
+	   collect other-data)))
