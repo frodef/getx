@@ -320,10 +320,10 @@ query INDICATORS is true, discarding the keys."
   (declare (ignore data))
   (proceed value))
 
-(define-getx call (list f &rest args)
-  :query-lambda (list f args)
-  "Apply F to LIST."
-  (proceed (apply f list args)))
+(define-getx call (data f &rest args)
+  :query-lambda (data f args)
+  "Apply F to DATA."
+  (proceed (apply f data args)))
 
 (define-getx fmt (data &rest formatters)
   :query-lambda (data formatters)
@@ -373,11 +373,24 @@ matches DATA under TEST. Proceed query with that (other) element."
 	when (funcall test data (? other-data other-indicator))
 	  return (proceed other-data)))
 
-(define-getx join (data other-data-list other-indicator &optional (test 'equal))
-  :query-lambda (data other-data-list other-indicator test)
-  "Find all elements of OTHER-DATA-LIST whose OTHER-INDICATOR
-matches DATA under TEST. Proceed query with those elements from OTHER-DATA-LIST."
+(define-getx join (data list indicator &optional (test 'equal))
+  :query-lambda (data list indicator test)
+  "Find all elements of LIST whose INDICATOR matches DATA under
+TEST. Proceed query with those elements from LIST."
   (proceed
-   (loop for other-data in other-data-list
-	 when (funcall test data (? other-data other-indicator))
-	   collect other-data)))
+   (loop for element in list
+	 when (funcall test data (? element indicator))
+	   collect element)))
+
+(define-getx seq (sequence &rest indicators)
+  :query-lambda (sequence indicators)
+  "For each element of SEQUENCE apply INDICATORS (implicit PROGN?) and
+proceed with a list of the results."
+  (proceed
+   (etypecase sequence
+     (list
+      (loop for element in sequence
+	    collect (apply #'? element indicators)))
+     (vector
+      (loop for element across sequence
+	    collect (apply #'? element indicators))))))
