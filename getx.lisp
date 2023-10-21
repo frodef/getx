@@ -322,8 +322,13 @@ query INDICATORS is true, discarding the keys."
 
 (define-getx call (data f &rest args)
   :query-lambda (data f args)
-  "Apply F to DATA."
+  "Apply F to DATA and any ARGS."
   (proceed (apply f data args)))
+
+(define-getx call* (list f &rest args)
+  :query-lambda (list f args)
+  "Apply F to the elements of LIST and any ARGS."
+  (proceed (apply f (append list args))))
 
 (define-getx fmt (data &rest formatters)
   :query-lambda (data formatters)

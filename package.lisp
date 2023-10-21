@@ -8,6 +8,7 @@
    all*
    associate
    call
+   call*
    foreach*
    each-key*
    each-value*
@@ -27,4 +28,5 @@
    fmt
    suppose
    join
-   pick))
+   pick
+   seq))
