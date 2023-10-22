@@ -161,6 +161,7 @@ SURFACE-LAMBDA."
 	 (defun ,do-query-name (continuation ,@query-lambda)
 	   ,@docstrings
 	   ,@declarations
+	   (declare (inline ?))
 	   (macrolet ((proceed (new-plist)
 			`(if continuation
 			     (apply #'? ,new-plist continuation)
@@ -341,35 +342,14 @@ until there are no more FORMATTERS."
      (loop while formatters
 	   do (apply #'format out (pop formatters)
 		     (loop while (and formatters (not (stringp (car formatters))))
-			   collect (getx:? data (pop formatters))))))))
+			   collect (? data (pop formatters))))))))
 
 (define-getx suppose (data &optional (key 'identity))
   :query-lambda (data key)
-  "Only proceed query if DATA is true under KEY, otherwise return NIL."
+  "Only proceed query if DATA is true under KEY, otherwise abort query
+and return NIL."
   (when (funcall key data)
     (proceed data)))
-
-#+ignore
-(define-getx join* (data indicator other-data-list &optional (other-indicator indicator) (test 'equal))
-  :query-lambda (data indicator other-data-list other-indicator test)
-  "Find each element of OTHER-DATA-LIST where the value of
-  OTHER-INDICATOR matches DATA:INDICATOR, and fan out query across
-  each such OTHER-DATA."
-  (let ((this-value (? data indicator)))
-    (loop for other-data in other-data-list
-	  when (funcall test this-value (? other-data other-indicator))
-	    collect (proceed other-data))))
-
-#+ignore
-(define-getx join (data indicator other-data-list &optional (other-indicator indicator) (test 'equal))
-  :query-lambda (data indicator other-data-list other-indicator test)
-  "Find the first element of OTHER-DATA-LIST where the value of
-  OTHER-INDICATOR matches DATA:INDICATOR, and proceed query with that
-  OTHER-DATA."
-  (let ((this-value (? data indicator)))
-    (loop for other-data in other-data-list
-	  when (funcall test this-value (? other-data other-indicator))
-	    return (proceed other-data))))
 
 (define-getx pick (data other-data-list other-indicator &optional (test 'equal))
   :query-lambda (data other-data-list other-indicator test)
@@ -400,3 +380,15 @@ proceed with a list of the results."
      (vector
       (loop for element across sequence
 	    collect (apply #'? element indicators))))))
+
+(define-getx default (data indicator &optional default)
+  :query-lambda (data indicator default)
+  "If query for INDICATOR executes normally, proceed with that
+value (even if NIL). If query is aborted (i.e. by missing key),
+proceed query with DEFAULT value instead."
+  (let ((good-value '#:good-value))
+    (multiple-value-bind (value good-probe)
+	(?? data indicator (getx:call #'values good-value))
+      (if (eq good-probe good-value)
+	  (proceed value)
+	  (proceed default)))))
