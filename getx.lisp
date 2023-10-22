@@ -20,7 +20,8 @@ If INDICATOR is a function object, that function is applied to DATA.
 
 If INDICATOR is any other atom (typically a keyword or symbol) it is
 either looked up in DATA by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE,
-depending on the type of DATA.
+depending on the type of DATA. A GETF or GETHASH query for a missing
+key will terminate the query and return NIL.
 
 Otherwise, INDICATOR is a special indicator form that can operate on
 any number of data types for DATA. ~@[ See the documentation for the
@@ -81,9 +82,10 @@ employee in some Acme company whose first name is Frode:
 	   (princ data indicator))
 	  (t (etypecase data
 	       (hash-table
-		(apply #'?
-		       (gethash indicator data)
-		       (cdr indicators)))
+		(let* ((no-value '#:no-value)
+		       (value (gethash indicator data no-value)))
+		  (unless (eq value no-value)
+		    (apply #'? value (cdr indicators)))))
 	       ((or standard-object structure-object)
 		(let ((data2 (if (not *standard-object-plist*)
 				 data
@@ -97,11 +99,10 @@ employee in some Acme company whose first name is Frode:
 			     indicators))))
 	       (list
 		;; GETF-like query
-		(apply #'?
-		       (loop for y = data then (cddr y)
-			     while y
-			       thereis (when (eq (car y) indicator) (cadr y)))
-		       (cdr indicators)))))))))
+		(loop for y = data then (cddr y)
+		      while y
+		      when (eq (car y) indicator)
+			return (apply #'? (cadr y) (cdr indicators))))))))))
 (declaim (notinline ?))
 
 (defmethod documentation ((x (eql '?)) (doc-type (eql 'function)))
