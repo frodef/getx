@@ -1,7 +1,8 @@
 (in-package #:getx)
 
-(defparameter *special-getx-operators* nil
-  "Records a list of operators defined by DEFINE-GETX.")
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *special-getx-operators* nil
+    "Records a list of operators defined by DEFINE-GETX."))
 
 (defvar *standard-object-plist* nil
   "Function to optionally map STANDARD-OBJECT data to plist. Function is
