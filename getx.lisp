@@ -31,7 +31,7 @@ For example, to find the email address and phone number of every
 employee in some Acme company whose first name is Frode:
   (getx:? company-plists (getx:seek :name \"Acme\" 'str:contains?) :employees (getx:select :first-name \"Frode\") (getx:multiple :email :phone))"
   (if (null indicators)
-      data				; Query completed.
+      (values data t)				; Query completed.
       (let ((indicator (car indicators)))
 	(typecase indicator
 	  (null
