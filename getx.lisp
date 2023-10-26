@@ -223,10 +223,20 @@ SURFACE-LAMBDA."
 
 (define-getx multiple (data &rest indicators)
   :query-lambda (data indicators)
-  "Return a list, being multiple INDICATORS from DATA."
+  "Return a list, being multiple INDICATORS from DATA. (mimick CL:LIST)"
   (mapcar (lambda (indicator)
 	    (proceed (? data indicator)))
 	  indicators))
+
+(define-getx multiple* (data &rest indicators)
+  :query-lambda (data indicators)
+  "Return a list, being multiple INDICATORS from DATA. (mimick CL:LIST*)"
+  (loop for (indicator . more-indicators-p) on indicators
+	;; do (warn "i ~S more ~S" indicator more-indicators-p)
+	if more-indicators-p
+	  collect (proceed (? data indicator))
+	else
+	  nconc (proceed (? data indicator))))
 
 (define-getx multiple-values (data &rest indicators)
   :query-lambda (data indicators)
@@ -345,11 +355,11 @@ until there are no more FORMATTERS."
 		     (loop while (and formatters (not (stringp (car formatters))))
 			   collect (? data (pop formatters))))))))
 
-(define-getx suppose (data &optional (key 'identity))
-  :query-lambda (data key)
-  "Only proceed query if DATA is true under KEY, otherwise abort query
-and return NIL."
-  (when (funcall key data)
+(define-getx suppose (data &rest indicators)
+  :query-lambda (data indicators)
+  "Only proceed query if sub-query is true, otherwise abort query and
+return NIL."
+  (when (apply #'? data indicators)
     (proceed data)))
 
 (define-getx pick (data other-data-list other-indicator &optional (test 'equal))
@@ -382,6 +392,19 @@ proceed with a list of the results."
       (loop for element across sequence
 	    collect (apply #'? element indicators))))))
 
+(define-getx cat (sequence &rest indicators)
+  :query-lambda (sequence indicators)
+  "For each element of SEQUENCE apply INDICATORS (implicit PROGN?) and
+proceed with a concatenation of the (list) results."
+  (proceed
+   (etypecase sequence
+     (list
+      (loop for element in sequence
+	    append (apply #'? element indicators)))
+     (vector
+      (loop for element across sequence
+	    append (apply #'? element indicators))))))
+
 (define-getx default (data indicator &optional default)
   :query-lambda (data indicator default)
   "If query for INDICATOR executes normally, proceed with that
@@ -393,3 +416,12 @@ proceed query with DEFAULT value instead."
       (if (eq good-probe good-value)
 	  (proceed value)
 	  (proceed default)))))
+
+(define-getx thereis (list &rest indicators)
+  :query-lambda (list indicators)
+  "Proceed query with the first element of LIST where query INDICATORS
+is non-nil."
+  (loop for element in list
+	for subq = (apply #'? element indicators)
+	when subq
+	  return (proceed element)))
