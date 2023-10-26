@@ -18,6 +18,7 @@
    keep*
    keep-type*
    multiple
+   multiple*
    multiple-values
    progn?
    seek
@@ -30,4 +31,5 @@
    join
    pick
    seq
+   cat
    default))
