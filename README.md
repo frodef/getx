@@ -29,7 +29,6 @@ As in the example above, most atom indicators are looked up in a plist
 under `EQ` as if by `CL:GETF`. The full set of query processing rules
 are:
 
-
 0. A `CL:NULL` indicator is ignored, i.e. the query proceeds with the
    same `DATA`.
 
@@ -65,6 +64,7 @@ allows for more complex queries:
 
     > (getx:? companies
               (getx:seek :name "Acme" 'str:contains?)
+			  (getx:suppose)
               :employees
               (getx:select :first-name "Frode")
               (getx:seq (getx:listing :email :phone)))
@@ -74,18 +74,22 @@ query does the following:
 
 1. Search out the first company whose :NAME property matches "Acme"
    under `STR:CONTAINS?`.
+   
+2. `GETX:SUPPOSE` terminates the query (returning NIL) unless the
+   previous result was non-NIL.
 
-2. For that company record, extract the `:EMPLOYEES` property.
+3. For the (now neccesarily non-NIL) company record, extract the
+   `:EMPLOYEES` property.
 
-3. Assuming a list of employee records (again represented as plists),
+4. For the list of employee records (again represented as plists),
    choose all records whose `:FIRST-NAME` property is "Frode". Query
    proceeds with a list of those matching records.
 
-4. `GETX:SEQ` loops over a list, for exach element collecting the
+5. `GETX:SEQ` loops over a list, for exach element collecting the
    result of the sub-query...
 
-5. ... which is to list both the :EMAIL and :PHONE properties for the
-   employee record.
+6. ... which is to list both the :EMAIL and :PHONE properties for each
+   employee record previously found.
 
 Note here that `GETX:SEEK` finds exactly one element (or `NIL`) and
 continues the query with that element. In contrast, `GETX:SELECT` can
@@ -93,14 +97,17 @@ match any number of records.
 
 ### Text formatting
 
-The preceding example query could be conveniently formatted into a
-string rather than returned as a list of values:
+The preceding example query result could be conveniently formatted
+into a string rather than returned as a list of values:
 
     > (getx:? companies
               (getx:seek :name "Acme" 'str:contains?)
+			  (getx:suppose)
               :employees
               (getx:select :first-name "Frode")
 	          (getx:seq (getx:fmt "Frode's email: ~A, phone: ~A" :email :phone)))
+
+This query will return a list of strings.
 
 ### Special indicators and evaluation
 
@@ -157,6 +164,7 @@ Here is a complete, self-contained example form to play with:
                               (:first-name "Alice"
                                :email "alice@acme-lisp.com"))))
                (getx:seek :name "Acme" 'str:contains?)
+               (getx:suppose)
                :employees
                (getx:select :first-name "Frode")
                (getx:seq (getx:listing :email :phone)))
