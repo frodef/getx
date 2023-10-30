@@ -5,26 +5,25 @@
   (:export
    ? ?? p?
    *standard-object-plist*
-   all*
+   all
    associate
    call
    call*
-   foreach*
-   each-key*
-   each-value*
+   fork
+   each-key
+   each-value
    except
    either
    filter
-   keep*
-   keep-type*
-   multiple
-   multiple*
+   keep
+   listing
+   listing*
    multiple-values
    progn?
    seek
    select
-   select*
-   unselect*
+   unselect
+   thereis
    yield
    fmt
    suppose
@@ -32,4 +31,7 @@
    pick
    seq
    cat
-   default))
+   default
+   else
+   orelse
+   with-bindings))

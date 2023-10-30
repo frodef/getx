@@ -30,14 +30,14 @@ individual special indicators: ~{~S~^, ~}.~]
 
 For example, to find the email address and phone number of every
 employee in some Acme company whose first name is Frode:
-  (getx:? company-plists (getx:seek :name \"Acme\" 'str:contains?) :employees (getx:select :first-name \"Frode\") (getx:multiple :email :phone))"
+  (getx:? company-plists (getx:seek :name \"Acme\" 'str:contains?) :employees (getx:select :first-name \"Frode\") (getx:listing :email :phone))"
+  (declare (dynamic-extent indicators))
   (if (null indicators)
       (values data t)				; Query completed.
       (let ((indicator (car indicators)))
 	(typecase indicator
 	  (null
-	   (when (cdr indicators)
-	     (apply #'? data (cdr indicators))))
+	   (apply #'? data (cdr indicators)))
 	  ((integer 0 *)
 	   ;; integer index indicator
 	   (apply #'?
@@ -167,7 +167,7 @@ SURFACE-LAMBDA."
 			`(if continuation
 			     (apply #'? ,new-plist continuation)
 			     ,new-plist)))
-	     (declare (ignorable (function proceed)))
+	     ;; (declare (ignorable (function proceed)))
 	     ,@body))
 	 (defun ,name ,(cdr surface-lambda)
 	   ,@(when docstrings
@@ -186,21 +186,15 @@ SURFACE-LAMBDA."
     (when (funcall test value (? element indicator))
       (return (proceed element)))))
 
-(define-getx select* (list indicator value &optional (test 'equal))
-  :query-lambda (list indicator value test)
-  "Select each element of LIST where INDICATOR matches VALUE under TEST. Fan out query."
-  (mapcan (lambda (element)
-	    (when (funcall test value (? element indicator))
-	      (list (proceed element))))
-	  list))
-
-(define-getx unselect* (list indicator value &optional (test 'equal))
-  :query-lambda (list indicator value test)
-  "Select each element of LIST where INDICATOR doesn't match VALUE under TEST. Fan out query."
-  (mapcan (lambda (element)
-	    (unless (funcall test value (? element indicator))
-	      (list (proceed element))))
-	  list))
+(define-getx unselect (list $indicator $compare &optional (test 'equal))
+  :query-lambda (list $indicator $compare test)
+  "Select each element of LIST where $INDICATOR doesn't match
+LIST:$COMPARE under TEST. Fan out query."
+  (let ((compare (? list $compare)))
+    (mapcan (lambda (element)
+	      (unless (funcall test (? element $indicator) compare)
+		(list (proceed element))))
+	    list)))
 
 (define-getx select (list indicator value &optional (test 'equal))
   :query-lambda (list indicator value test)
@@ -221,22 +215,25 @@ SURFACE-LAMBDA."
 	when sub-data
 	  do (return (proceed sub-data))))
 
-(define-getx multiple (data &rest indicators)
-  :query-lambda (data indicators)
-  "Return a list, being multiple INDICATORS from DATA. (mimick CL:LIST)"
-  (mapcar (lambda (indicator)
-	    (proceed (? data indicator)))
-	  indicators))
+(define-getx listing (data &rest sub-queries)
+  :query-lambda (data sub-queries)
+  "Proceed with a list of the result of each SUB-QUERY."
+  (proceed
+   (mapcar (lambda (sub-query)
+	     (? data sub-query))
+	   sub-queries)))
 
-(define-getx multiple* (data &rest indicators)
-  :query-lambda (data indicators)
-  "Return a list, being multiple INDICATORS from DATA. (mimick CL:LIST*)"
-  (loop for (indicator . more-indicators-p) on indicators
-	;; do (warn "i ~S more ~S" indicator more-indicators-p)
-	if more-indicators-p
-	  collect (proceed (? data indicator))
-	else
-	  nconc (proceed (? data indicator))))
+(define-getx listing* (data &rest sub-queries)
+  :query-lambda (data sub-queries)
+  "Proceed with a list of the result of each SUB-QUERY, with the result of the
+last SUB-QUERY being the tail of the list, like CL:LIST*."
+  (proceed
+   (loop for (sub-query . more-queries-p) on sub-queries
+	 ;; do (warn "i ~S more ~S" indicator more-indicators-p)
+	 if more-queries-p
+	   collect (? data sub-query)
+	 else
+	   nconc (? data sub-query))))
 
 (define-getx multiple-values (data &rest indicators)
   :query-lambda (data indicators)
@@ -245,15 +242,17 @@ SURFACE-LAMBDA."
 			 (proceed (? data indicator)))
 		       indicators)))
 
-(define-getx all* (plist each-key)
-  "Fan out across a list of all values of PLIST for KEY (as opposed to
+(define-getx all (plist plist-indicator)
+  "Make a list of all values of PLIST for PLIST-INDICATOR (as opposed to
 just returning the first value for KEY)."
-  (loop for (key value) on plist by #'cddr
-	when (eq key each-key)
-	  collect (proceed value)))
+  (proceed
+   (loop for (k v) on plist by #'cddr
+	 when (eq plist-indicator k)
+	   collect v)))
 
-(define-getx foreach* (list)
-  "Fan out query across each element of LIST. Returns a list."
+(define-getx fork (list)
+  "Fork out query across each element of LIST. Returns a list. Note that
+the remaining query will be executed (length LIST) times."
   (loop for element in list
 	collect (proceed element)))
 
@@ -265,36 +264,38 @@ non-NIL."
 	when (funcall key x)
 	  collect (proceed x)))
 
-(define-getx keep-type* (list type)
-  :query-lambda (list type)
-  "Fan out query across each element of LIST which matches TYPE."
-  (loop for x in list
-	when (typep x type)
-	  collect (proceed x)))
+(define-getx keep (list &rest implicit-prog?)
+  :query-lambda (list implicit-prog?)
+  (proceed
+   (loop for x in list
+	 when (apply #'? x implicit-prog?)
+	   collect x)))
 
-(define-getx each-key* (data)
-  "Return the keys of a plist or hash-table DATA, discarding the
-values."
-  (etypecase data
-    (list
-     (loop for (key value) on data by #'cddr
-	   collect (proceed key)))
-    (hash-table
-     (loop for key being the hash-keys of data
-	   collect (proceed key)))))
+(define-getx each-key (data &rest $sub-query)
+  :query-lambda (data $sub-query)
+  "Proceed query with a list of the SUB-QUERY applied to the keys of a
+plist or hash-table DATA, discarding the values."
+  (proceed
+   (etypecase data
+     (list
+      (loop for (key value) on data by #'cddr
+	    collect (apply #'? key $sub-query)))
+     (hash-table
+      (loop for key being the hash-keys of data
+	    collect (apply #'? key $sub-query))))))
 
-(define-getx each-value* (data &rest indicators)
-  :query-lambda (data indicators)
-  "Fan out across the values of plist or hash-table DATA for which
-query INDICATORS is true, discarding the keys."
-  (etypecase data
-    (list
-     (loop for (key value) on data by #'cddr
-	   when (apply #'? value indicators)
-	     collect (proceed value)))
-    (hash-table
-     (loop for value being the hash-values of data
-	   collect (proceed value)))))
+(define-getx each-value (data &rest $sub-query)
+  :query-lambda (data $sub-query)
+  "Proceed query with a list of the SUB-QUERY applied to the values of a
+plist or hash-table DATA, ignoring the keys."
+  (proceed
+   (etypecase data
+     (list
+      (loop for (key value) on data by #'cddr
+	    collect (apply #'? value $sub-query)))
+     (hash-table
+      (loop for value being the hash-values of data
+	    collect (apply #'? value $sub-query))))))
 
 #+ignore (define-getx either (data &rest indicators)
 	   :query-lambda (data indicators)
@@ -343,12 +344,18 @@ query INDICATORS is true, discarding the keys."
   "Apply F to the elements of LIST and any ARGS."
   (proceed (apply f (append list args))))
 
-(define-getx fmt (data &rest formatters)
-  :query-lambda (data formatters)
+(define-getx fmt (data formatter &optional (first-indicator #'identity) &rest more-indicators)
+  :query-lambda (data formatter first-indicator more-indicators)
   "Format DATA into a string. Each string FORMATTER is passed to
 CL:FORMAT with any succeeding non-string indicators as arguments,
 until there are no more FORMATTERS."
   (proceed
+   (apply #'format nil formatter
+	  (? data first-indicator)
+	  (mapcar (lambda (indicator)
+		    (? data indicator))
+		  more-indicators))
+   #+ignore
    (with-output-to-string (out)
      (loop while formatters
 	   do (apply #'format out (pop formatters)
@@ -362,13 +369,16 @@ return NIL."
   (when (apply #'? data indicators)
     (proceed data)))
 
-(define-getx pick (data other-data-list other-indicator &optional (test 'equal))
-  :query-lambda (data other-data-list other-indicator test)
-  "Pick out first element of OTHER-DATA-LIST whose OTHER-INDICATOR
-matches DATA under TEST. Proceed query with that (other) element."
-  (loop for other-data in other-data-list
-	when (funcall test data (? other-data other-indicator))
-	  return (proceed other-data)))
+(define-getx pick (data this-indicator other-data-list-indicator &optional (other-indicator this-indicator) (test 'equal))
+  :query-lambda (data this-indicator other-data-list-indicator other-indicator test)
+  "First apply THIS-INDICATOR, then pick out first element of
+OTHER-DATA-LIST whose OTHER-INDICATOR matches DATA under TEST. Proceed
+query with that (other) element."
+  (let ((this-data (? data this-indicator)))
+    ;; (warn "this-data: ~S # ~S-> ~S"  data this-indicator this-data)
+    (loop for other-data in (? data other-data-list-indicator)
+	  when (funcall test this-data (? other-data other-indicator))
+	    return (proceed other-data))))
 
 (define-getx join (data list indicator &optional (test 'equal))
   :query-lambda (data list indicator test)
@@ -417,11 +427,49 @@ proceed query with DEFAULT value instead."
 	  (proceed value)
 	  (proceed default)))))
 
-(define-getx thereis (list &rest indicators)
-  :query-lambda (list indicators)
-  "Proceed query with the first element of LIST where query INDICATORS
-is non-nil."
+(define-getx else (data value)
+  "If DATA is false, proceed query with VALUE instead."
+  (proceed (or data value)))
+
+(define-getx orelse (data value)
+  "If DATA is false, terminate query with VALUE."
+  (if (not data) value (proceed data)))
+
+(define-getx thereis (list &rest $sub-query)
+  :query-lambda (list $sub-query)
+  "Proceed query with the result of the first element of LIST
+for which SUB-QUERY is non-NIL."
   (loop for element in list
-	for subq = (apply #'? element indicators)
+	for subq = (apply #'? element $sub-query)
 	when subq
-	  return (proceed element)))
+	  return (proceed subq)))
+
+(define-getx bind* (data &rest bindings &key &allow-other-keys)
+  :query-lambda (data bindings)
+  (loop for (var indicator) on bindings by #'cddr
+	collect var into vars
+	collect (? data indicator) into vals
+	finally
+	   (return (progv vars vals (proceed data)))))
+
+(defmacro with-bindings ((&rest bindings) &body implicit-prog?)
+  `(symbol-macrolet ,(loop for (var) in bindings collect `(,var (var* ',var)))
+     (declare (inline bind* var*))
+     (progn?
+      (bind* ,@(loop for (var val) in bindings collect `(quote ,var) collect val))
+      ,@implicit-prog?)))
+
+(define-getx var* (data variable &rest implicit-prog?)
+  :query-lambda (data variable implicit-prog?)
+  (declare (ignore data))
+  (proceed (apply #'? (symbol-value variable) implicit-prog?)))
+
+
+(define-getx combine (data function &rest $sub-queries)
+  :query-lambda (data function $sub-queries)
+  "Collect the results of SUB-QUERIES and combine the results like CL:REDUCE."
+  (proceed
+   (reduce function
+	   (mapcar (lambda (sub-query)
+		     (? data sub-query))
+		   $sub-queries))))
