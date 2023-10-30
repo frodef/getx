@@ -64,7 +64,7 @@ allows for more complex queries:
 
     > (getx:? companies
               (getx:seek :name "Acme" 'str:contains?)
-			  (getx:suppose)
+              (getx:suppose)
               :employees
               (getx:select :first-name "Frode")
               (getx:seq (getx:listing :email :phone)))
@@ -102,7 +102,7 @@ into a string rather than returned as a list of values:
 
     > (getx:? companies
               (getx:seek :name "Acme" 'str:contains?)
-			  (getx:suppose)
+              (getx:suppose)
               :employees
               (getx:select :first-name "Frode")
 	          (getx:seq (getx:fmt "Frode's email: ~A, phone: ~A" :email :phone)))
