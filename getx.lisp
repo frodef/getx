@@ -19,6 +19,8 @@ negative index counts from the end.
 
 If INDICATOR is a function object, that function is applied to DATA.
 
+If INDICATOR is a string, DATA is formattet by that string.
+
 If INDICATOR is any other atom (typically a keyword or symbol) it is
 either looked up in DATA by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE,
 depending on the type of DATA. A GETF or GETHASH query for a missing
@@ -38,7 +40,7 @@ employee in some Acme company whose first name is Frode:
 	(typecase indicator
 	  (null
 	   (apply #'? data (cdr indicators)))
-	  ((integer 0 *)
+	  ((and (integer 0 *) fixnum)
 	   ;; integer index indicator
 	   (apply #'?
 		  (etypecase data
@@ -50,7 +52,7 @@ employee in some Acme company whose first name is Frode:
 		    (vector
 		     (aref data indicator)))
 		  (cdr indicators)))
-	  ((integer * -1)
+	  ((and (integer * -1) fixnum)
 	   ;; negative integer index indicator, count from end
 	   (let ((n (- indicator)))
 	     (apply #'?
@@ -67,6 +69,8 @@ employee in some Acme company whose first name is Frode:
 			     (aref data (- l n))
 			     nil))))
 		    (cdr indicators))))
+	  (string
+	   (format nil indicator data))
 	  (function
 	   ;; Function indicator
 	   (apply #'?
@@ -164,6 +168,7 @@ SURFACE-LAMBDA."
 	   ,@declarations
 	   (declare (inline ?))
 	   (macrolet ((proceed (new-plist)
+			#+ignore `(apply #'? ,new-plist continuation)
 			`(if continuation
 			     (apply #'? ,new-plist continuation)
 			     ,new-plist)))
@@ -332,12 +337,12 @@ plist or hash-table DATA, ignoring the keys."
 (define-getx yield (data value)
   "Always yield VALUE, regardless of DATA."
   (declare (ignore data))
-  (proceed value))
+  (proceed (values value 'yield)))
 
-(define-getx call (data f &rest args)
-  :query-lambda (data f args)
+(define-getx call (data f &rest $args)
+  :query-lambda (data f $args)
   "Apply F to DATA and any ARGS."
-  (proceed (apply f data args)))
+  (proceed (apply f (mapcar (lambda (arg) (? data arg)) $args))))
 
 (define-getx call* (list f &rest args)
   :query-lambda (list f args)
@@ -415,17 +420,26 @@ proceed with a concatenation of the (list) results."
       (loop for element across sequence
 	    append (apply #'? element indicators))))))
 
-(define-getx default (data indicator &optional default)
-  :query-lambda (data indicator default)
+#+ignore
+(define-getx default (data $indicator &optional $default)
+  :query-lambda (data $indicator $default)
   "If query for INDICATOR executes normally, proceed with that
 value (even if NIL). If query is aborted (i.e. by missing key),
 proceed query with DEFAULT value instead."
   (let ((good-value '#:good-value))
     (multiple-value-bind (value good-probe)
-	(?? data indicator (getx:call #'values good-value))
+	(?? data $indicator (getx:call #'values good-value))
       (if (eq good-probe good-value)
 	  (proceed value)
-	  (proceed default)))))
+	  (proceed (? data $default))))))
+
+(define-getx default (data &rest $indicators)
+  :query-lambda (data $indicators)
+  (loop for indicator in $indicators
+	do (multiple-value-bind (value goodness-probe)
+	       (? data indicator)
+	     (when goodness-probe
+	       (return (proceed value))))))
 
 (define-getx else (data value)
   "If DATA is false, proceed query with VALUE instead."
@@ -473,3 +487,9 @@ for which SUB-QUERY is non-NIL."
 	   (mapcar (lambda (sub-query)
 		     (? data sub-query))
 		   $sub-queries))))
+
+(define-getx affirm (data &rest $implicit-prog?)
+  :query-lambda (data $implicit-prog?)
+  (unless (apply #'? data $implicit-prog?)
+    (error "Affirmation failed on ~S." data))
+  (proceed data))

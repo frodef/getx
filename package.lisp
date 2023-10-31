@@ -34,4 +34,5 @@
    default
    else
    orelse
+   affirm
    with-bindings))

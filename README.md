@@ -36,21 +36,23 @@ are:
    index returns `NIL`. A negative index is counted from the end. DATA
    must be either a vector or a proper list. Effort is taken to
    traverse lists exactly once.
+   
+2. A `CL:STRING` indicator is used to `CL:FORMAT` the `DATA`.
 
-2. A `CL:FUNCTION` indicator is applied to the `DATA`.
+3. A `CL:FUNCTION` indicator is applied to the `DATA`.
 
-3. A `CL:CONS` indicator is "special", see below.
+4. A `CL:CONS` indicator is "special", see below.
 
-4. A `CL:STREAM` indicator is handled by doing `(PRINC \<data\>
+5. A `CL:STREAM` indicator is handled by doing `(PRINC \<data\>
    \<indicator\>)`
 
-5. A `CL:HASH-TABLE-P` `DATA` object is sent to `CL:GETHASH` using the
+6. A `CL:HASH-TABLE-P` `DATA` object is sent to `CL:GETHASH` using the
    indicator as key.
 
-6. A `CL:STANDARD-OBJECT` or `CL:STRUCTURE-OBJECT` is sent to
+7. A `CL:STANDARD-OBJECT` or `CL:STRUCTURE-OBJECT` is sent to
    `CL:SLOT-VALUE` using the indicator as slot-name.
 
-7. Otherwise, look up indicator in `DATA` as a plist, as if by
+8. Otherwise, look up indicator in `DATA` as a plist, as if by
    `CL:GETF`.
 
 Note that `GETX:?` is a normal function, and so standard CL evaluation
@@ -126,7 +128,7 @@ illustrate:
 
 No query processing is performed here, just trivial list manipulation,
 somewhat akin to a macro-expansion.  The resulting list
-(i.e. indicator) is processed by rule 3 of the `GETX:?` query
+(i.e. indicator) is processed by rule 4 of the `GETX:?` query
 processing rules above. In other words, these two forms are
 equivalent:
 
