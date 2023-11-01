@@ -70,7 +70,8 @@ employee in some Acme company whose first name is Frode:
 			     nil))))
 		    (cdr indicators))))
 	  (string
-	   (format nil indicator data))
+	   (apply #'? (format nil indicator data)
+		  (cdr indicators)))
 	  (function
 	   ;; Function indicator
 	   (apply #'?
@@ -385,14 +386,25 @@ query with that (other) element."
 	  when (funcall test this-data (? other-data other-indicator))
 	    return (proceed other-data))))
 
-(define-getx join (data list indicator &optional (test 'equal))
-  :query-lambda (data list indicator test)
-  "Find all elements of LIST whose INDICATOR matches DATA under
-TEST. Proceed query with those elements from LIST."
+(define-getx join (list $indicator $other-list &optional ($other-indicator $indicator) (test 'equal) no-matches-p no-other-matches-p (other-first-p t))
+  :query-lambda (list $indicator $other-list $other-indicator test no-matches-p no-other-matches-p other-first-p)
+  "For each element of LIST, append first entry from $OTHER-LIST where
+LIST:$INDICATOR matches $OTHER-LIST:$OTHER-INDICATOR under
+TEST. Optionally include entries where either list doesn't match. If
+OTHER-FIRST-P is true (default true), make entries from $OTHER-LIST
+first in the results."
   (proceed
-   (loop for element in list
-	 when (funcall test data (? element indicator))
-	   collect element)))
+   (loop with other-list = (? list $other-list)
+	 for element in list
+	 nconc (multiple-value-bind (value ok?)
+		   (? element $indicator)
+		 (when (or ok? no-matches-p)
+		   (let ((other-element
+			   (? other-list (seek $other-indicator value test))))
+		     (when (or other-element no-other-matches-p)
+		       (list (if other-first-p
+			   (append other-element element)
+			   (append element other-element))))))))))
 
 (define-getx seq (sequence &rest indicators)
   :query-lambda (sequence indicators)
