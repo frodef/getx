@@ -35,4 +35,5 @@
    else
    orelse
    affirm
+   is
    with-bindings))

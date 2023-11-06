@@ -123,6 +123,7 @@ to its argument."
       (let ((*standard-object-plist* sop))
 	(apply #'? data indicators)))))
 
+
 (defmacro define-getx (name surface-lambda &body options-body)
   "Define a GETX special indicator. This consists of two functions:
 The query function %<NAME> that performs the relevant query, and the
@@ -502,6 +503,14 @@ for which SUB-QUERY is non-NIL."
 
 (define-getx affirm (data &rest $implicit-prog?)
   :query-lambda (data $implicit-prog?)
+  "Assert $IMPLICIT-PROG? is true, or err."
   (unless (apply #'? data $implicit-prog?)
     (error "Affirmation failed on ~S." data))
   (proceed data))
+
+(define-getx is (data value &optional (test #'equal))
+  :query-lambda (data value test)
+  "Return NIL unless DATA is VALUE under TEST."
+  (when (funcall test data value)
+    (proceed data)))
+
