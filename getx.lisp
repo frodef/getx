@@ -23,8 +23,7 @@ If INDICATOR is a string, DATA is formattet by that string.
 
 If INDICATOR is any other atom (typically a keyword or symbol) it is
 either looked up in DATA by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE,
-depending on the type of DATA. A GETF or GETHASH query for a missing
-key will terminate the query and return NIL.
+depending on the type of DATA.
 
 Otherwise, INDICATOR is a special indicator form that can operate on
 any number of data types for DATA. ~@[ See the documentation for the
@@ -88,10 +87,8 @@ employee in some Acme company whose first name is Frode:
 	   (princ data indicator))
 	  (t (etypecase data
 	       (hash-table
-		(let* ((no-value '#:no-value)
-		       (value (gethash indicator data no-value)))
-		  (unless (eq value no-value)
-		    (apply #'? value (cdr indicators)))))
+		(apply #'? (gethash indicator data)
+		       (cdr indicators)))
 	       ((or standard-object structure-object)
 		(let ((data2 (if (not *standard-object-plist*)
 				 data
@@ -105,10 +102,9 @@ employee in some Acme company whose first name is Frode:
 			     indicators))))
 	       (list
 		;; GETF-like query
-		(loop for y = data then (cddr y)
-		      while y
-		      when (eq (car y) indicator)
-			return (apply #'? (cadr y) (cdr indicators))))))))))
+		(values (apply #'?
+			       (getf data indicator)
+			       (cdr indicators))))))))))
 (declaim (notinline ?))
 
 (defmethod documentation ((x (eql '?)) (doc-type (eql 'function)))
@@ -454,13 +450,16 @@ proceed query with DEFAULT value instead."
 	     (when goodness-probe
 	       (return (proceed value))))))
 
-(define-getx else (data value)
-  "If DATA is false, proceed query with VALUE instead."
-  (proceed (or data value)))
+(define-getx else (data $else)
+  "If DATA is false, proceed query with $ELSE instead."
+  (proceed (or data (? data $else))))
 
-(define-getx orelse (data value)
-  "If DATA is false, terminate query with VALUE."
-  (if (not data) value (proceed data)))
+(define-getx orelse (data &rest $test-query)
+  :query-lambda (data $test-query)
+  "Terminate query if $TEST-QUERY is true."
+  (if (apply #'? data $test-query)
+      data
+      (proceed data)))
 
 (define-getx thereis (list &rest $sub-query)
   :query-lambda (list $sub-query)
@@ -510,7 +509,6 @@ for which SUB-QUERY is non-NIL."
 
 (define-getx is (data value &optional (test #'equal))
   :query-lambda (data value test)
-  "Return NIL unless DATA is VALUE under TEST."
+  "Terminate with NIL unless DATA is VALUE under TEST."
   (when (funcall test data value)
     (proceed data)))
-
