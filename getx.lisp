@@ -19,8 +19,6 @@ negative index counts from the end.
 
 If INDICATOR is a function object, that function is applied to DATA.
 
-If INDICATOR is a string, DATA is formattet by that string.
-
 If INDICATOR is any other atom (typically a keyword or symbol) it is
 either looked up in DATA by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE,
 depending on the type of DATA.
@@ -28,6 +26,8 @@ depending on the type of DATA.
 Otherwise, INDICATOR is a special indicator form that can operate on
 any number of data types for DATA. ~@[ See the documentation for the
 individual special indicators: ~{~S~^, ~}.~]
+
+If INDICATOR is a string, DATA is formattet by that string.
 
 For example, to find the email address and phone number of every
 employee in some Acme company whose first name is Frode:
@@ -68,9 +68,9 @@ employee in some Acme company whose first name is Frode:
 			     (aref data (- l n))
 			     nil))))
 		    (cdr indicators))))
-	  (string
-	   (apply #'? (format nil indicator data)
-		  (cdr indicators)))
+	  #+ignore (string
+		    (apply #'? (format nil indicator data)
+			   (cdr indicators)))
 	  (function
 	   ;; Function indicator
 	   (apply #'?
@@ -85,7 +85,7 @@ employee in some Acme company whose first name is Frode:
 	  (stream
 	   ;; PRINC data to stream
 	   (princ data indicator))
-	  (t (etypecase data
+	  (t (typecase data
 	       (hash-table
 		(apply #'? (gethash indicator data)
 		       (cdr indicators)))
@@ -102,9 +102,14 @@ employee in some Acme company whose first name is Frode:
 			     indicators))))
 	       (list
 		;; GETF-like query
-		(values (apply #'?
-			       (getf data indicator)
-			       (cdr indicators))))))))))
+		(apply #'?
+		       (getf data indicator)
+		       (cdr indicators)))
+	       (t (cond
+		    ((stringp indicator)
+		     (apply #'? (format nil indicator data)
+			    (cdr indicators)))
+		    (t (error "Unknown ~S data/indicator combination: ~S / ~S" '? (type-of data) (type-of indicator)))))))))))
 (declaim (notinline ?))
 
 (defmethod documentation ((x (eql '?)) (doc-type (eql 'function)))
@@ -468,7 +473,7 @@ for which SUB-QUERY is non-NIL."
   (loop for element in list
 	for subq = (apply #'? element $sub-query)
 	when subq
-	  return (proceed subq)))
+	  return (proceed element)))
 
 (define-getx bind* (data &rest bindings &key &allow-other-keys)
   :query-lambda (data bindings)
