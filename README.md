@@ -37,23 +37,23 @@ are:
    must be either a vector or a proper list. Effort is taken to
    traverse lists exactly once.
    
-2. A `CL:STRING` indicator is used to `CL:FORMAT` the `DATA`.
+2. A `CL:FUNCTION` indicator is applied to the `DATA`.
 
-3. A `CL:FUNCTION` indicator is applied to the `DATA`.
+3. A `CL:CONS` indicator is "special", see below.
 
-4. A `CL:CONS` indicator is "special", see below.
-
-5. A `CL:STREAM` indicator is handled by doing `(PRINC \<data\>
+4. A `CL:STREAM` indicator is handled by doing `(PRINC \<data\>
    \<indicator\>)`
 
-6. A `CL:HASH-TABLE-P` `DATA` object is sent to `CL:GETHASH` using the
+5. A `CL:HASH-TABLE` `DATA` object is sent to `CL:GETHASH` using the
    indicator as key.
 
-7. A `CL:STANDARD-OBJECT` or `CL:STRUCTURE-OBJECT` is sent to
+6. A `CL:STANDARD-OBJECT` or `CL:STRUCTURE-OBJECT` is sent to
    `CL:SLOT-VALUE` using the indicator as slot-name.
 
-8. Otherwise, look up indicator in `DATA` as a plist, as if by
-   `CL:GETF`.
+7. If `DATA` is a `CL:LIST`, look up indicator in `DATA` as a plist,
+   as if by `CL:GETF`.
+
+8. If indicator is a `CL:STRING`, it is used to `CL:FORMAT` the `DATA`.
 
 Note that `GETX:?` is a normal function, and so standard CL evaluation
 rules apply to its arguments. Note that indicators except "special
