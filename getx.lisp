@@ -459,6 +459,12 @@ proceed query with DEFAULT value instead."
   "If DATA is false, proceed query with $ELSE instead."
   (proceed (or data (? data $else))))
 
+(define-getx else! (data $else)
+  "If DATA is false, terminate query with $ELSE instead."
+  (if data
+      (proceed data)
+      (? data $else)))
+
 (define-getx orelse (data &rest $test-query)
   :query-lambda (data $test-query)
   "Terminate query if $TEST-QUERY is true."
