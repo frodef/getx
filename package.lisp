@@ -33,6 +33,7 @@
    cat
    default
    else
+   else!
    orelse
    affirm
    is
