@@ -274,6 +274,7 @@ non-NIL."
 
 (define-getx keep (list &rest implicit-prog?)
   :query-lambda (list implicit-prog?)
+  "Proceed with the elements of LIST for which the sub-query is true."
   (proceed
    (loop for x in list
 	 when (apply #'? x implicit-prog?)
@@ -522,4 +523,11 @@ for which SUB-QUERY is non-NIL."
   :query-lambda (data value test)
   "Terminate with NIL unless DATA is VALUE under TEST."
   (when (funcall test data value)
+    (proceed data)))
+
+(define-getx also (data &rest $sub-queries)
+  :query-lambda (data $sub-queries)
+  "If every SUB-QUERY is true, proceed with DATA."
+  (when (loop for sq in $sub-queries
+	      always (? data sq))
     (proceed data)))
