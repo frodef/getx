@@ -503,7 +503,7 @@ for which SUB-QUERY is non-NIL."
   (proceed (apply #'? (symbol-value variable) implicit-prog?)))
 
 
-(define-getx combine (data function &rest $sub-queries)
+(define-getx combine* (data function &rest $sub-queries)
   :query-lambda (data function $sub-queries)
   "Collect the results of SUB-QUERIES and combine the results like CL:REDUCE."
   (proceed
@@ -511,6 +511,14 @@ for which SUB-QUERY is non-NIL."
 	   (mapcar (lambda (sub-query)
 		     (? data sub-query))
 		   $sub-queries))))
+
+(define-getx combine (list function &rest $sub-queries)
+  :query-lambda (list function $sub-queries)
+  "Collect the results of SUB-QUERIES over LIST and combine the results like CL:REDUCE."
+  (proceed
+   (reduce function list
+	   :key (lambda (x)
+		  (apply #'? x $sub-queries)))))
 
 (define-getx affirm (data &rest $implicit-prog?)
   :query-lambda (data $implicit-prog?)

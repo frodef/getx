@@ -38,4 +38,5 @@
    orelse
    affirm
    is
-   with-bindings))
+   with-bindings
+   combine))
