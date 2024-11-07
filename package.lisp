@@ -39,4 +39,5 @@
    affirm
    is
    with-bindings
-   combine))
+   combine
+   slice))

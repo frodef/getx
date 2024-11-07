@@ -49,7 +49,9 @@ employee in some Acme company whose first name is Frode:
 		       (when (atom data)
 			 (error 'type-error :datum data :expected-type 'list))))
 		    (vector
-		     (aref data indicator)))
+		     (if (< indicator (length data))
+			 (aref data indicator)
+			 nil)))
 		  (cdr indicators)))
 	  ((and (integer * -1) fixnum)
 	   ;; negative integer index indicator, count from end
@@ -466,12 +468,9 @@ proceed query with DEFAULT value instead."
       (proceed data)
       (? data $else)))
 
-(define-getx orelse (data &rest $test-query)
-  :query-lambda (data $test-query)
-  "Terminate query if $TEST-QUERY is true."
-  (if (apply #'? data $test-query)
-      data
-      (proceed data)))
+(define-getx orelse (data)
+  "Terminate query if DATA is true, otherwise proceed."
+  (or data (proceed data)))
 
 (define-getx thereis (list &rest $sub-query)
   :query-lambda (list $sub-query)
@@ -539,3 +538,80 @@ for which SUB-QUERY is non-NIL."
   (when (loop for sq in $sub-queries
 	      always (? data sq))
     (proceed data)))
+
+(define-getx slice (sequence start &optional end)
+  :query-lambda (sequence start end)
+  "Slice a sequence, similar to Python slicing, i.e. negative index
+counts from the end. Will try to share structure with SEQUENCE as much
+as possible. An empty vector will return as NIL."
+  (check-type start integer)
+  (check-type end (or null integer))
+  (proceed
+   (etypecase sequence
+     (list
+      (if (eql end 0)
+	  nil
+	  (let* ((length nil)
+		 (start-pos nil)
+		 (slice-start
+		   (etypecase start
+		     ((eql 0)
+		      (setf start-pos 0)
+		      sequence)
+		     ((integer 1 *)
+		      (setf start-pos start)
+		      (nthcdr start sequence))
+		     ((integer * -1)
+		      (setf start-pos 0)
+		      (loop for slice = sequence then (cdr slice)
+			    for runner = (loop initially (setf length 0)
+					       #| this loop is (nthcdr (- start) sequence) with counting LENGTH |#
+					       for x = sequence then (cdr x)
+					       repeat (- start)
+					       while x
+					       do (incf length)
+					       finally (return x))
+			      then (cdr runner)
+			    while runner
+			    do (incf length)
+			       (incf start-pos)
+			    finally (return slice))))))
+	    (when slice-start
+	      (etypecase end
+		(null
+		 slice-start)
+		((integer 1 *)
+		 (loop for i upfrom start-pos below end
+		       while slice-start
+		       collect (pop slice-start)))
+		((integer * -1)
+		 (loop for i upfrom start-pos below (+ end (or length (length sequence)))
+		       do (assert slice-start)
+		       collect (pop slice-start))))))))
+     (vector
+      (let* ((length
+	       (length sequence))
+	     (end-pos
+	       (cond
+		 ((not end) length)
+		 ((< end 0) (+ length end))
+		 (t end))))
+	(cond
+	  ((= 0 length)
+	   sequence)
+	  ((< end-pos 0)
+	   nil)
+	  (t (etypecase start
+	       ((eql 0)
+		(if (>= end-pos length)
+		    sequence
+		    (subseq sequence 0 end-pos)))
+	       ((integer 1 *)
+		(if (>= start end-pos)
+		    nil
+		    (subseq sequence start end-pos)))
+	       ((integer * -1)
+		(let ((start-pos (- length start)))
+		  (if (<= start-pos end-pos)
+		      nil
+		      (subseq sequence start-pos end-pos))))))))))))
