@@ -196,21 +196,23 @@ SURFACE-LAMBDA."
     (when (funcall test value (? element indicator))
       (return (proceed element)))))
 
-(define-getx unselect (list $indicator $compare &optional (test 'equal))
-  :query-lambda (list $indicator $compare test)
-  "Select each element of LIST where $INDICATOR doesn't match
-LIST:$COMPARE under TEST. Fan out query."
-  (let ((compare (? list $compare)))
-    (mapcan (lambda (element)
-	      (unless (funcall test (? element $indicator) compare)
-		(list (proceed element))))
-	    list)))
+(define-getx select (list $indicator value &optional (test 'equal))
+  :query-lambda (list $indicator value test)
+  "Proceed with each element of LIST where $INDICATOR matches
+VALUE under TEST."
+  (proceed
+   (loop for element in list
+	 when (funcall test value (? element $indicator))
+	   collect element)))
 
-(define-getx select (list indicator value &optional (test 'equal))
-  :query-lambda (list indicator value test)
-  (proceed (loop for element in list
-		 when (funcall test value (? element indicator))
-		   collect element)))
+(define-getx unselect (list $indicator value &optional (test 'equal))
+  :query-lambda (list $indicator value test)
+  "Proceed with each element of LIST where $INDICATOR doesn't match
+VALUE under TEST."
+  (proceed
+   (loop for element in list
+	 unless (funcall test value (? element $indicator))
+	   collect element)))
 
 (define-getx progn? (data &rest indicators)
   :query-lambda (data indicators)
@@ -342,6 +344,7 @@ plist or hash-table DATA, ignoring the keys."
 
 (define-getx yield (data value)
   "Always yield VALUE, regardless of DATA."
+  ;; Superseded by CL:CONSTANTLY.
   (declare (ignore data))
   (proceed (values value 'yield)))
 
