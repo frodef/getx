@@ -618,3 +618,12 @@ as possible. An empty vector will return as NIL."
 		  (if (<= start-pos end-pos)
 		      nil
 		      (subseq sequence start-pos end-pos))))))))))))
+
+
+(define-getx no-error (data $protected-query &optional ($error-query (constantly nil)))
+  :query-lambda (data $protected-query $error-query)
+  (proceed
+   (handler-case (? data $protected-query)
+     (error (c)
+       (declare (ignore c))
+       (? data $error-query)))))

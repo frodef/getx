@@ -40,4 +40,5 @@
    is
    with-bindings
    combine
-   slice))
+   slice
+   no-error))
