@@ -52,7 +52,9 @@ employee in some Acme company whose first name is Frode:
 		    (vector
 		     (if (< indicator (length data))
 			 (aref data indicator)
-			 nil)))
+			 nil))
+		    (hash-table
+		     (gethash indicator data)))
 		  (cdr indicators)))
 	  ((and (integer * -1) fixnum)
 	   ;; negative integer index indicator, count from end
