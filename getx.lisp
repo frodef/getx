@@ -43,6 +43,7 @@ employee in some Acme company whose first name is Frode:
 	   ;; integer index indicator
 	   (apply #'?
 		  (etypecase data
+		    (null nil)
 		    (cons
 		     (dotimes (i indicator (car data))
 		       (pop data)
