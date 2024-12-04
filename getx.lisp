@@ -19,6 +19,8 @@ negative index counts from the end.
 
 If INDICATOR is a function object, that function is applied to DATA.
 
+A NIL INDICATOR is skipped; the query proceeds with the same DATA.
+
 If INDICATOR is any other atom (typically a keyword or symbol) it is
 either looked up in DATA by CL:GETF, CL:GETHASH, or CL:SLOT-VALUE,
 depending on the type of DATA.
@@ -354,7 +356,9 @@ plist or hash-table DATA, ignoring the keys."
 (define-getx call (data f &rest $args)
   :query-lambda (data f $args)
   "Apply F to DATA and any ARGS."
-  (proceed (apply f (mapcar (lambda (arg) (? data arg)) $args))))
+  (proceed (apply f (mapcar (lambda (arg)
+			      (? data arg))
+			    $args))))
 
 (define-getx call* (list f &rest args)
   :query-lambda (list f args)
@@ -486,6 +490,16 @@ for which SUB-QUERY is non-NIL."
 	for subq = (apply #'? element $sub-query)
 	when subq
 	  return (proceed element)))
+
+(define-getx attempt (data &rest $sub-queries)
+  :query-lambda (data $sub-queries)
+  "Proceed with the first of SUB-QUERIES that returns non-NIL, or
+terminate with NIL."
+  (loop for sub-query in $sub-queries
+	for result = (? data sub-query)
+	do (when result
+	     (return (proceed result)))))
+
 
 (define-getx bind* (data &rest bindings &key &allow-other-keys)
   :query-lambda (data bindings)
