@@ -188,7 +188,7 @@ SURFACE-LAMBDA."
 	   ,@(when docstrings
 	       (list (concatenate 'string "Special GETX indicator: " (first docstrings))))
 	   (list ',do-query-name ,@(cdr query-lambda)))
-	 (declaim (notinline ,name ,do-query-name))))))
+	 #+ignore (declaim (notinline ,name ,do-query-name))))))
 
 (defmacro ?? (data &rest indicators)
   `(locally (declare (inline ? ,@*special-getx-operators*))
@@ -329,6 +329,14 @@ plist or hash-table DATA, ignoring the keys."
 (define-getx filter (list function)
   "Map FUNCTION over LIST. Returns a list."
   (proceed (mapcar function list)))
+
+(define-getx pluck (data &rest $indicators)
+  :query-lambda (data $indicators)
+  "Proceed with a plist that only includes the listed $INDICATORS and
+their values from DATA."
+  (proceed (loop for indicator in $indicators
+		 collect indicator
+		 collect (? data indicator))))
 
 (define-getx except (data &rest except-keys)
   :query-lambda (data except-keys)
@@ -551,6 +559,27 @@ terminate with NIL."
   "Terminate with NIL unless DATA is VALUE under TEST."
   (when (funcall test data value)
     (proceed data)))
+
+(define-getx aggregate (plist &rest keywords)
+  :query-lambda (plist keywords)
+  "For each KEYWORD (that might occur more than once) in PLIST,
+collect each occurince/value into a list of values."
+  (proceed
+   
+   (loop with aggregations = nil
+	 for (key value) on plist by #'cddr
+	 if (not (member key keywords))
+	   collect key into new-plist
+	   and collect value into new-plist
+	 else if (not (getf aggregations key))
+		collect key into new-plist
+		and collect nil into new-plist
+		and do (push value (getf aggregations key))
+	 else do (push value (getf aggregations key))
+	 finally (return
+		   (loop for (k v) on aggregations by #'cddr
+			 do (setf (getf new-plist k) v)
+			 finally (return new-plist))))))
 
 (define-getx also (data &rest $sub-queries)
   :query-lambda (data $sub-queries)
