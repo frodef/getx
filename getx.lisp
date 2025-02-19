@@ -158,9 +158,22 @@ SURFACE-LAMBDA."
 		 collect (pop body)))
 	 (declarations
 	   (loop while (typep (car body) '(cons (eql declare)))
-		 collect (pop body))))
-    (destructuring-bind (&key (query-lambda surface-lambda))
+		 collect (pop body)))
+	 (lambda-vars
+	   (multiple-value-bind (reqs opts rest keys aok aux)
+	       (alexandria:parse-ordinary-lambda-list surface-lambda)
+	     (declare (ignore aok))
+	     (append reqs
+		     (mapcar #'car opts)
+		     (when rest
+		       (list rest))
+		     (mapcar #'cadar keys)
+		     (mapcar #'car aux)))))
+    (destructuring-bind (&key (query-lambda lambda-vars))
 	options
+      (assert (equal query-lambda lambda-vars) ()
+	      "lambda mismatch: QL ~S, LV: ~S."
+	      query-lambda lambda-vars)
       (assert (and (every #'symbolp query-lambda)
 		   (null (intersection query-lambda lambda-list-keywords)))
 	      (query-lambda)
@@ -480,11 +493,11 @@ proceed query with DEFAULT value instead."
   "If DATA is false, proceed query with $ELSE instead."
   (proceed (or data (? data $else))))
 
-(define-getx else! (data $else)
-  "If DATA is false, terminate query with $ELSE instead."
+(define-getx else! (data else)
+  "If DATA is false, terminate query with ELSE instead."
   (if data
       (proceed data)
-      (? data $else)))
+      else))
 
 (define-getx orelse (data)
   "Terminate query if DATA is true, otherwise proceed."
@@ -673,3 +686,8 @@ as possible. An empty vector will return as NIL."
      (error (c)
        (declare (ignore c))
        (? data $error-query)))))
+
+(define-getx fork (data &rest $sub-queries)
+  "Perform $SUB-QUERIES for side-effects, then proceed with DATA."
+  (apply #'? data $sub-queries)
+  (proceed data))
