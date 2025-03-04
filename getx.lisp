@@ -265,6 +265,14 @@ last SUB-QUERY being the tail of the list, like CL:LIST*."
 	 else
 	   nconc (? data sub-query))))
 
+(define-getx affix (plist &rest affixes &key &allow-other-keys)
+  "Add a set of properties to PLIST. Each affix is a pair of (keyword)
+symbol and an indicator that is applied to PLIST."
+  (proceed
+   (nconc (loop for (key indicator) on affixes by #'cddr
+		nconc (list key (? plist indicator)))
+	  plist)))
+
 (define-getx multiple-values (data &rest indicators)
   :query-lambda (data indicators)
   "Return multiple INDICATORS from DATA, as multiple values."
@@ -279,12 +287,6 @@ just returning the first value for KEY)."
    (loop for (k v) on plist by #'cddr
 	 when (eq plist-indicator k)
 	   collect v)))
-
-(define-getx fork (list)
-  "Fork out query across each element of LIST. Returns a list. Note that
-the remaining query will be executed (length LIST) times."
-  (loop for element in list
-	collect (proceed element)))
 
 (define-getx keep* (list &optional (key 'identity))
   :query-lambda (list key)
@@ -302,18 +304,19 @@ non-NIL."
 	 when (apply #'? x implicit-prog?)
 	   collect x)))
 
-(define-getx each-key (data &rest $sub-query)
-  :query-lambda (data $sub-query)
-  "Proceed query with a list of the SUB-QUERY applied to the keys of a
-plist or hash-table DATA, discarding the values."
+(defun compute-each-key (data)
+  (etypecase data
+    (list
+     (loop for key in data by #'cddr
+	   collect key))
+    (hash-table
+     (loop for key being the hash-keys of data
+	   collect key))))
+
+(define-getx each-key (data)
+  "Proceed query with a list of the keys of plist or hash-table DATA, discarding the values."
   (proceed
-   (etypecase data
-     (list
-      (loop for (key value) on data by #'cddr
-	    collect (apply #'? key $sub-query)))
-     (hash-table
-      (loop for key being the hash-keys of data
-	    collect (apply #'? key $sub-query))))))
+   (compute-each-key data)))
 
 (define-getx each-value (data &rest $sub-query)
   :query-lambda (data $sub-query)
@@ -328,17 +331,19 @@ plist or hash-table DATA, ignoring the keys."
       (loop for value being the hash-values of data
 	    collect (apply #'? value $sub-query))))))
 
-#+ignore (define-getx either (data &rest indicators)
-	   :query-lambda (data indicators)
-	   "Return the first INDICATOR sub-query that returns a non-NIL result."
-	   (loop for indicator in indicators
-		   thereis (proceed (? data indicator))))
+#+defunct
+(define-getx either (data &rest indicators)
+  :query-lambda (data indicators)
+  "Return the first INDICATOR sub-query that returns a non-NIL result."
+  (loop for indicator in indicators
+	  thereis (proceed (? data indicator))))
 
 (define-getx associate (alist item &key (key 'identity) (test 'eq))
   :query-lambda (alist item key test)
   "Look up ITEM in ALIST as if by CL:ASSOC."
   (proceed (assoc item alist :key key :test test)))
 
+#+defunct
 (define-getx filter (list function)
   "Map FUNCTION over LIST. Returns a list."
   (proceed (mapcar function list)))
@@ -351,15 +356,28 @@ their values from DATA."
 		 collect indicator
 		 collect (? data indicator))))
 
+(define-getx make-plist (data &rest args &key &allow-other-keys)
+  "Create a plist from each pair (KEYWORD $INDICATOR) where each $INDICATOR is applied to DATA."
+  (proceed (loop for (keyword indicator) on args by #'cddr
+		 collect keyword
+		 collect (? data indicator))))
+
 (define-getx except (data &rest except-keys)
   :query-lambda (data except-keys)
   "Remove EXCEPT-KEYS (and their values) from DATA, non-destructively."
   (proceed
    (etypecase data
      (list
-      (loop for (k v) on data by #'cddr
-	    unless (member k except-keys)
-	      collect k and collect v))
+      (loop while (and data
+		       (member (car data) except-keys))
+	    do (setf data (cddr data)))
+      (if (loop for except-key in except-keys
+		always (loop for k in data by #'cddr
+			     never (eq k except-key)))
+	  data
+	  (loop for (k v) on data by #'cddr
+		unless (member k except-keys)
+		  collect k and collect v)))
      (hash-table
       (let ((new-table (make-hash-table :test (hash-table-test data))))
 	(maphash (lambda (k v)
@@ -388,21 +406,15 @@ their values from DATA."
 
 (define-getx fmt (data formatter &optional (first-indicator #'identity) &rest more-indicators)
   :query-lambda (data formatter first-indicator more-indicators)
-  "Format DATA into a string. Each string FORMATTER is passed to
-CL:FORMAT with any succeeding non-string indicators as arguments,
-until there are no more FORMATTERS."
+  "Format DATA into a string. FORMATTER is passed to CL:FORMAT with any
+succeeding indicators (acting on DATA) as arguments. If no indicators
+are specified, DATA itself is passed as the sole argument to be formatted."
   (proceed
    (apply #'format nil formatter
 	  (? data first-indicator)
 	  (mapcar (lambda (indicator)
 		    (? data indicator))
-		  more-indicators))
-   #+ignore
-   (with-output-to-string (out)
-     (loop while formatters
-	   do (apply #'format out (pop formatters)
-		     (loop while (and formatters (not (stringp (car formatters))))
-			   collect (? data (pop formatters))))))))
+		  more-indicators))))
 
 (define-getx suppose (data &rest indicators)
   :query-lambda (data indicators)
@@ -687,7 +699,35 @@ as possible. An empty vector will return as NIL."
        (declare (ignore c))
        (? data $error-query)))))
 
-(define-getx fork (data &rest $sub-queries)
+(define-getx aside (data &rest $sub-queries)
   "Perform $SUB-QUERIES for side-effects, then proceed with DATA."
   (apply #'? data $sub-queries)
   (proceed data))
+
+(define-getx sift (data sift &rest $indicators)
+  (let ((indicators (or $indicators
+			(compute-each-key data))))
+    (proceed
+     (etypecase data
+       (list
+	(loop for data-indicator in indicators
+	      for sift-indicator = (? sift data-indicator)
+	      collect data-indicator
+	      collect (? data data-indicator sift-indicator)))))))
+
+(define-getx best-by (list predicate &rest $indicators)
+  "Find the best element of LIST according to PREDICATE, for which $INDICATORS is applied."
+  (proceed
+   (when list
+     (loop with best = (first list)
+	   with best-value = (apply #'? best $indicators)
+	   for candidate in (rest list)
+	   for candidate-value = (apply #'? candidate $indicators)
+	   do (when (funcall predicate candidate-value best-value)
+		(setf best candidate
+		      best-value candidate-value))
+	   finally (return best)))))
+
+(define-getx lookup-in (data other-data)
+  "Take the current DATA as an indicator into OTHER-DATA."
+  (proceed (? other-data data)))
