@@ -91,7 +91,8 @@ employee in some Acme company whose first name is Frode:
 		  (cdar indicators)))
 	  (stream
 	   ;; PRINC data to stream
-	   (princ data indicator))
+	   (princ data indicator)
+	   (apply #'? data (cdr indicators)))
 	  (t (typecase data
 	       (hash-table
 		(apply #'? (gethash indicator data)
@@ -220,7 +221,7 @@ SURFACE-LAMBDA."
 VALUE under TEST."
   (proceed
    (loop for element in list
-	 when (funcall test value (? element $indicator))
+	 when (funcall test (? element $indicator) value)
 	   collect element)))
 
 (define-getx unselect (list $indicator value &optional (test 'equal))
@@ -404,13 +405,18 @@ their values from DATA."
   "Apply F to the elements of LIST and any ARGS."
   (proceed (apply f (append list args))))
 
-(define-getx fmt (data formatter &optional (first-indicator #'identity) &rest more-indicators)
+(define-getx fmt (data &optional formatter (first-indicator #'identity) &rest more-indicators)
   :query-lambda (data formatter first-indicator more-indicators)
   "Format DATA into a string. FORMATTER is passed to CL:FORMAT with any
 succeeding indicators (acting on DATA) as arguments. If no indicators
-are specified, DATA itself is passed as the sole argument to be formatted."
+are specified, DATA itself is passed as the sole argument to be formatted.
+Default FORMATTER is ~A, concatenated and space-separated if DATA is LISTP."
   (proceed
-   (apply #'format nil formatter
+   (apply #'format nil
+	  (cond
+	    (formatter)
+	    ((listp data) "~{~A~^ ~}")
+	    (t "~A"))
 	  (? data first-indicator)
 	  (mapcar (lambda (indicator)
 		    (? data indicator))
